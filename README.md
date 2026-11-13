@@ -1,43 +1,44 @@
 # Atelier — le hub d'Inès
 
-Suivi des binds : **bibliothèque perso** (binds pour elle, bind exchange, fanfics) et **activité pro** (commandes clientes), avec la to-do du jour au milieu et les tableaux façon carnet en dessous.
+Suivi des binds : **bibliothèque perso** d'un côté, **activité pro** de l'autre, et au milieu ce qu'Inès fait **aujourd'hui**. Pensé pour l'ordi, l'iPad et l'iPhone.
 
-Site statique (HTML/CSS/JS, aucune installation) → hébergé sur GitHub Pages.
+En ligne : https://amelienito.github.io/atelier-ines/
 
 ## Ce que fait le site
 
-- Deux côtés séparés (perso / pro), chacun avec sa liste d'étapes par défaut, et un bouton plein écran par côté.
-- **+** sur un côté → nouveau projet : on décoche les étapes inutiles pour ce livre, on peut ajouter des étapes « autre » (ex. Envoi du colis).
-- Barre de progression par projet, tri par urgence en glissant ⋮⋮.
-- **Aujourd'hui** : on choisit les étapes du jour ; cocher ici coche l'étape dans le projet. Le lendemain, ce qui n'est pas fait est reporté.
-- Dernière étape cochée → rappel des **livrables** à cocher. Le projet reste en rouge tant que ce n'est pas fini, puis part tout seul dans les **Archives** (rien n'est perdu, on peut le remettre en cours).
-- Tableaux croisés titres × étapes (cases cliquables, cases hachurées = étape pas concernée, dates début/fin).
-- **Réglages** : listes d'étapes et de livrables par défaut, synchro en ligne, sauvegarde/import, remise à zéro.
+- **Projets** avec emoji, couverture (dégradé ou photo), type, cliente/contact, dates, notes. Tout se modifie directement en cliquant dessus.
+- **Étapes** : à la création, on touche celles dont on n'a pas besoin, on ajoute des étapes « autre ». Progression en perles (ou barre). Bouton ✓ pour cocher l'étape en cours depuis la carte, ☀ pour la mettre dans « Aujourd'hui ».
+- **Aujourd'hui** : étapes de projets + tâches libres, suggestions « À suivre ». Ce qui n'est pas fait est gardé le lendemain (« d'hier »).
+- **Fin d'un livre** : quand toutes les étapes sont faites, une fenêtre de fête rappelle le dossier de livrables ; une fois coché, le livre rejoint l'étagère des **livres terminés**.
+- **Vue d'ensemble** : les tableaux façon carnet (cases cliquables), repliables.
+- **Personnalisation** : thème clair/sombre/auto, fond, cartes aérées/compactes, perles ou barre, couleurs, noms et emojis des espaces, étapes/livrables/types par défaut. Sur chaque appareil : vibrations, sons, animations réduites.
+- **Confort** : glisser-déposer (souris, ou appui long au doigt), recherche ⌘K / Ctrl+K, annuler ⌘Z / Ctrl+Z (et bouton « Annuler » après chaque action importante).
 
-Au premier lancement, le site affiche quelques projets d'exemple (tirés des photos). Pour partir d'une page blanche : Réglages → « Repartir de zéro ».
+## Mémoire
 
-## Mettre en ligne
+1. **Sur l'appareil** : stockage du navigateur + copie de secours (IndexedDB) + une copie par jour gardée 30 jours.
+2. **En ligne** : `data.json` dans le dépôt privé `amelienito/atelier-ines-data`. Chaque modification = une version datée (avec le nom de l'appareil). Réglages → Mémoire & synchro → Historique pour revenir en arrière.
+3. **Photos de couverture** : `covers/…jpg` dans le même dépôt privé.
 
-1. Dépôt public `atelier-ines` avec ces fichiers à la racine.
-2. Settings → Pages → Source : *Deploy from a branch* → `main` / `/ (root)`.
-3. Adresse : `https://amelienito.github.io/atelier-ines/`
+Si deux appareils modifient en même temps, les changements sont fusionnés projet par projet (le plus récent gagne, rien ne ressuscite après suppression).
 
-## Synchro ordi ↔ téléphone (optionnelle mais conseillée)
+## Connecter un appareil
 
-Sans synchro, les données restent dans le navigateur de l'appareil. Avec, elles vont dans un fichier `data.json` d'un **dépôt privé** (avec un historique de chaque modif, donc une sauvegarde automatique).
+Sur un appareil déjà connecté : Réglages → Mémoire & synchro → **Copier le lien** (ou Envoyer…). On ouvre ce lien sur l'autre appareil → « Connecter ». C'est tout.
 
-1. Créer un dépôt **privé** `atelier-ines-data` en cochant **Add a README file**.
-2. GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token :
-   - Repository access : *Only select repositories* → `atelier-ines-data`
-   - Permissions → Repository permissions → **Contents : Read and write**
-   - Durée : la plus longue proposée
-3. Sur chaque appareil d'Inès : Réglages → coller le jeton → Connecter.
+Le lien contient le jeton GitHub : à envoyer en privé seulement.
 
-Si le jeton expire, la pastille en haut passe en « Synchro en panne » : refaire un jeton et le recoller.
+Sur iPhone/iPad, ajouter le site à l'écran d'accueil (Safari → Partager → « Sur l'écran d'accueil »), puis rouvrir le lien une fois dans l'appli : l'appli installée a son propre stockage et iOS ne l'efface jamais.
+
+Le jeton expire le **13/11/2027** : en refaire un (fine-grained, accès au seul dépôt `atelier-ines-data`, Contents : Read and write) et reconnecter avec. Les données ne sont pas touchées par l'expiration.
 
 ## Fichiers
 
 - `index.html` — la page
-- `style.css` — l'apparence (couleurs en haut du fichier)
-- `app.js` — tout le fonctionnement (listes d'étapes par défaut tout en haut)
-- `manifest.json`, icônes — pour « Ajouter à l'écran d'accueil » sur iPhone
+- `style.css` — l'apparence (couleurs et thèmes en haut)
+- `js/data.js` — modèles par défaut (étapes, livrables, types, palettes), structure des données, fusion
+- `js/views.js` — tout l'affichage
+- `js/actions.js` — tout ce qui modifie quelque chose (+ annuler)
+- `js/sync.js` — mémoire locale, synchro GitHub, historique, couvertures, lien de connexion
+- `js/fx.js` — vibrations, sons, confettis, glisser-déposer
+- `js/main.js` — démarrage

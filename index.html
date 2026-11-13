@@ -1,29 +1,37 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Atelier — Inès</title>
-  <meta name="theme-color" content="#16161a">
+  <title>Atelier</title>
+  <meta name="theme-color" content="#f3f1f6">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Atelier">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
-<body data-tab="today">
+<body data-tab="today" data-bg="doux">
   <div id="app">
     <header class="top" id="top"></header>
     <main id="main"></main>
-    <nav class="tabbar" id="tabbar"></nav>
   </div>
-  <div id="modal-root"></div>
-  <div id="toast-root"></div>
-  <script src="app.js"></script>
+  <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
+  <div id="sheet-root"></div>
+  <div id="pop-root"></div>
+  <div id="toast-root" aria-live="polite"></div>
+  <div id="fx" aria-hidden="true"></div>
+  <script src="js/data.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/actions.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
