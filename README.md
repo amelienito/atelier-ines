@@ -34,6 +34,9 @@ Le jeton expire le **13/11/2027** : en refaire un (fine-grained, accès au seul 
 
 ## Fichiers
 
+Après une modification, augmenter le numéro `?v=…` dans `index.html` (sinon les navigateurs peuvent garder l'ancienne version jusqu'à 10 minutes).
+
+
 - `index.html` — la page
 - `style.css` — l'apparence (couleurs et thèmes en haut)
 - `js/data.js` — modèles par défaut (étapes, livrables, types, palettes), structure des données, fusion
