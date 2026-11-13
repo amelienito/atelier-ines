@@ -1,0 +1,12 @@
+{
+  "name": "Atelier — Inès",
+  "short_name": "Atelier",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f1f2f4",
+  "theme_color": "#16161a",
+  "icons": [
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
