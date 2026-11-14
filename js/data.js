@@ -13,12 +13,20 @@ const DEFAULT_OWNER = 'amelienito';
 const DEFAULT_REPO = 'atelier-ines-data';
 const SIDES = ['perso', 'pro'];
 
-/* ---------- Toiles de reliure : couleur de chaque livre et des espaces ---------- */
+/* ---------- Couleurs des livres et des espaces ---------- */
 const CLOTHS = [
-  ['Bordeaux', '#6b1f2a'], ['Vermillon', '#b5332a'], ['Rouille', '#97461f'], ['Moutarde', '#c2902a'],
-  ['Mousse', '#5c6a2c'], ['Forêt', '#1e4637'], ['Paon', '#0d5a62'], ['Encre', '#1d2945'],
-  ['Prune', '#4a2446'], ['Vieux rose', '#b06873'], ['Lin', '#c4b89f'], ['Noir', '#1b1a1d'],
+  ['Framboise', '#f0648c'], ['Corail', '#ff8b74'], ['Pêche', '#ffb07c'], ['Miel', '#f5c451'],
+  ['Pistache', '#b3d66a'], ['Menthe', '#6fd5b0'], ['Lagon', '#4dc3d6'], ['Ciel', '#7fa9ff'],
+  ['Pervenche', '#9d92ff'], ['Lilas', '#c890f2'], ['Rose', '#ff9fc8'], ['Sable', '#ddc4a2'],
 ];
+/* Anciennes toiles (v3) → nouvelle couleur */
+const OLD_CLOTH = {
+  '#6b1f2a': '#f0648c', '#b5332a': '#ff8b74', '#97461f': '#ffb07c', '#c2902a': '#f5c451',
+  '#5c6a2c': '#b3d66a', '#1e4637': '#6fd5b0', '#0d5a62': '#4dc3d6', '#1d2945': '#7fa9ff',
+  '#4a2446': '#c890f2', '#b06873': '#ff9fc8', '#c4b89f': '#ddc4a2', '#1b1a1d': '#9d92ff',
+  '#e0457b': '#ff8b74', '#1f8460': '#4dc3d6',
+};
+const hue = (c) => { const k = String(c || '').toLowerCase(); return OLD_CLOTH[k] || k; };
 /* Couleurs des pastilles de type */
 const PALETTE = [
   ['Framboise', '#d0436f'], ['Corail', '#e0603f'], ['Abricot', '#e5862b'], ['Miel', '#c9970f'],
@@ -26,21 +34,21 @@ const PALETTE = [
   ['Lavande', '#7e5fe0'], ['Prune', '#9a4386'], ['Rose poudré', '#cf7395'], ['Ardoise', '#55627b'],
 ];
 /* Anciennes couvertures en dégradé → toile la plus proche */
-const GRAD_TO_CLOTH = { aube: '#b06873', peche: '#b06873', soleil: '#c2902a', menthe: '#5c6a2c', lagon: '#0d5a62', ciel: '#1d2945', lavande: '#4a2446', pierre: '#c4b89f', braise: '#b5332a', foret: '#1e4637', nuit: '#4a2446', encre: '#1d2945' };
+const GRAD_TO_CLOTH = { aube: '#ff9fc8', peche: '#ffb07c', soleil: '#f5c451', menthe: '#6fd5b0', lagon: '#4dc3d6', ciel: '#7fa9ff', lavande: '#9d92ff', pierre: '#ddc4a2', braise: '#ff8b74', foret: '#b3d66a', nuit: '#c890f2', encre: '#7fa9ff' };
 
 const BOOK_EMOJIS = ['📕', '📗', '📘', '📙', '📓', '📔', '📒'];
 
 /* ---------- Modèles par défaut (tout est modifiable dans Réglages) ---------- */
 const DEFAULT_SIDES = {
   perso: {
-    name: 'Bibliothèque perso', emoji: '📚', color: '#b5332a',
+    name: 'Bibliothèque perso', emoji: '📚', color: '#ff8b74',
     steps: ['Typeset', 'Impression', 'Couture', 'Colle', 'Maquette', 'Découpe carton',
       'Découpe Cricut', 'Impression couverture', 'Vinyle', 'Assemblage final'],
     deliverables: ['Dossier du projet', 'Fichiers typeset + maquette rangés', 'Photos du bind'],
     types: [['Fanfic', '#7e5fe0'], ['Bind exchange', '#e5862b']],
   },
   pro: {
-    name: 'Activité pro', emoji: '✂️', color: '#0d5a62',
+    name: 'Activité pro', emoji: '✂️', color: '#4dc3d6',
     steps: ['Création maquette', 'Envoi maquette', 'Validation maquette', 'Règlement acompte',
       'Commande matériel (si besoin)', 'Découpe carton', 'Impression couv + découpe Cricut',
       'Vinyle', 'Impression page de garde', 'Assemblage du livre', 'Photo du livre',
@@ -68,7 +76,7 @@ const hid = (prefix, s) => prefix + hashStr(s).toString(36);
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const isHex = (c) => /^#[0-9a-f]{6}$/i.test(c || '');
 const defaultIcon = (id) => BOOK_EMOJIS[hashStr(id) % BOOK_EMOJIS.length];
-const defaultCloth = (id) => CLOTHS[hashStr('t' + id) % (CLOTHS.length - 2)][1];
+const defaultCloth = (id) => CLOTHS[hashStr('t' + id) % CLOTHS.length][1];
 /* Contraste : texte doré ou encre selon la toile */
 function lum(hex) {
   const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -132,11 +140,11 @@ function seedState() {
     s.projects.push(p);
     return p;
   };
-  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Fanfic', cloth: '#b06873' });
-  mk('perso', 'Green Light', 0, { cloth: '#5c6a2c', skip: ['Découpe Cricut'] });
-  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', cloth: '#1d2945', client: 'Camille' });
-  mk('pro', 'Eragon', 5, { kind: 'Rebind', cloth: '#b5332a' });
-  mk('pro', 'Les Liaisons dangereuses', 5, { kind: 'Couverture', cloth: '#4a2446' });
+  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Fanfic', cloth: '#ff9fc8' });
+  mk('perso', 'Green Light', 0, { cloth: '#b3d66a', skip: ['Découpe Cricut'] });
+  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', cloth: '#7fa9ff', client: 'Camille' });
+  mk('pro', 'Eragon', 7, { kind: 'Rebind', cloth: '#ffb07c' });
+  mk('pro', 'Les Liaisons dangereuses', 2, { kind: 'Couverture', cloth: '#c890f2' });
   s.today.items = [
     { id: uid(), projectId: jl.id, stepId: jl.steps[3].id },
     { id: uid(), projectId: ce.id, stepId: ce.steps[5].id },
@@ -181,7 +189,7 @@ function normSide(sd, side) {
   return {
     name: String(sd.name || '').trim() || d.name,
     emoji: String(sd.emoji || '').trim() || d.emoji,
-    color: isHex(sd.color) && !['#e0457b', '#1f8460'].includes(sd.color.toLowerCase()) ? sd.color.toLowerCase() : d.color,
+    color: isHex(sd.color) ? hue(sd.color) : d.color,
     steps: list(sd.steps, d.steps),
     deliverables: list(sd.deliverables, d.deliverables),
     types: list(sd.types, d.types, (x) => ({ color: isHex(x.color) ? x.color.toLowerCase() : '#8564e8' })),
@@ -209,7 +217,7 @@ function normProject(p, sd) {
   return {
     id: String(p.id), side: p.side, title: String(p.title || '').trim() || 'Sans titre',
     icon: String(p.icon || '').trim() || defaultIcon(String(p.id)),
-    cloth: isHex(p.cloth) ? p.cloth.toLowerCase() : (p.cover && p.cover.t === 'grad' && GRAD_TO_CLOTH[p.cover.v]) || defaultCloth(String(p.id)),
+    cloth: isHex(p.cloth) ? hue(p.cloth) : (p.cover && p.cover.t === 'grad' && GRAD_TO_CLOTH[p.cover.v]) || defaultCloth(String(p.id)),
     cover: normCover(p.cover),
     kind: str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
     steps, deliverables,

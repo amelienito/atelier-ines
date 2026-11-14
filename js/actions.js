@@ -112,9 +112,9 @@ function toggleTheme() {
   commit(() => { state.prefs.theme = dark ? 'clair' : 'sombre'; state.prefsU = now(); });
 }
 function shake(sel) { const el = $(sel); if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); el.focus(); Haptic.tap(); }
-/* Paillettes de dorure (couleur de la toile en plus) */
-const GOLD = ['#e8c766', '#c79528', '#f3dc94', '#a87a18'];
-const sparkColors = (cloth) => [...GOLD, cloth || '#c79528'];
+/* Bulles : la couleur du livre, éclaircie, et un peu de lumière */
+const GOLD = ['#ffd3b5', '#ffc1d3', '#cfc8ff', '#bfeee2', '#ffffff'];
+const sparkColors = (cloth) => [cloth || '#ff8b74', cloth || '#ff8b74', '#ffffff', ...GOLD.slice(0, 3)];
 
 /* ---------- Étapes ---------- */
 function setStepDone(pid, sid, value, el) {
@@ -145,7 +145,7 @@ function setStepDone(pid, sid, value, el) {
 function celebrateDone(p) {
   setTimeout(() => {
     Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.cloth));
-    toast(`« ${p.title} » est terminé et rangé sur l’étagère`, { action: 'Annuler', onAction: () => Undo.undo() });
+    toast(`« ${p.title} » est terminé`, { action: 'Annuler', onAction: () => Undo.undo() });
   }, 150);
 }
 function checkDayDone() {
@@ -292,7 +292,7 @@ const actions = {
     const p = P(el.dataset.id); if (!p) return;
     ui.sheet = null;
     commit(() => archiveProject(p));
-    toast(`« ${p.title} » est rangé sur l’étagère`, { action: 'Annuler', onAction: () => Undo.undo() });
+    toast(`« ${p.title} » est passé dans les terminés`, { action: 'Annuler', onAction: () => Undo.undo() });
   },
   unarchive(el) {
     const p = P(el.dataset.id); if (!p) return;

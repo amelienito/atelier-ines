@@ -59,47 +59,50 @@ const Sound = {
   },
 };
 
-/* ---------- Confettis ---------- */
+/* ---------- Bulles ----------
+   Quand on coche : quelques bulles de la couleur du livre s'échappent.
+   Quand un livre ou une journée est fini : une nuée de bulles monte. */
 const FX = {
   at(el) {
     if (!el || !el.isConnected) return null;
     const r = el.getBoundingClientRect();
     return [r.left + r.width / 2, r.top + r.height / 2];
   },
+  bubble(x, y, c, size) {
+    const el = document.createElement('i');
+    el.className = 'bit';
+    el.style.left = x + 'px'; el.style.top = y + 'px';
+    el.style.width = el.style.height = size + 'px';
+    el.style.setProperty('--c', c);
+    $('#fx').appendChild(el);
+    return el;
+  },
   burst(pt, colors, n = 12, power = 1) {
     if (!pt || calm()) return;
-    const layer = $('#fx');
     for (let i = 0; i < n; i++) {
-      const el = document.createElement('i');
-      el.className = 'bit' + (i % 3 === 0 ? ' round' : '');
-      el.style.left = pt[0] + 'px'; el.style.top = pt[1] + 'px';
-      el.style.background = colors[i % colors.length];
-      layer.appendChild(el);
-      const a = (Math.PI * 2 * i) / n + Math.random() * 0.5;
-      const d = (30 + Math.random() * 40) * power;
-      const dx = Math.cos(a) * d; const dy = Math.sin(a) * d;
+      const el = this.bubble(pt[0], pt[1], colors[i % colors.length], 6 + Math.random() * 10);
+      const a = (Math.PI * 2 * i) / n + Math.random() * 0.6;
+      const d = (26 + Math.random() * 38) * power;
+      const dx = Math.cos(a) * d; const dy = Math.sin(a) * d * 0.7;
       el.animate([
-        { transform: 'translate(0,0) scale(.3)', opacity: 1 },
-        { transform: `translate(${dx}px,${dy}px) scale(1) rotate(${Math.random() * 180}deg)`, opacity: 1, offset: 0.55 },
-        { transform: `translate(${dx * 1.15}px,${dy + 26 * power}px) scale(.6) rotate(${Math.random() * 360}deg)`, opacity: 0 },
-      ], { duration: 600 + Math.random() * 300, easing: 'cubic-bezier(.2,.75,.35,1)' }).onfinish = () => el.remove();
+        { transform: 'translate(-50%,-50%) scale(.2)', opacity: 0 },
+        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`, opacity: 1, offset: 0.4 },
+        { transform: `translate(calc(-50% + ${dx * 1.2}px), calc(-50% + ${dy - 40 * power}px)) scale(.9)`, opacity: 0 },
+      ], { duration: 900 + Math.random() * 500, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => el.remove();
     }
   },
   rain(colors) {
     if (calm()) return;
-    const layer = $('#fx'); const w = innerWidth; const h = innerHeight;
-    for (let i = 0; i < 80; i++) {
-      const el = document.createElement('i');
-      el.className = 'bit' + (i % 4 === 0 ? ' round' : '');
-      el.style.left = Math.random() * w + 'px'; el.style.top = '-16px';
-      el.style.background = colors[i % colors.length];
-      layer.appendChild(el);
-      const sway = (Math.random() - 0.5) * 160;
+    const w = innerWidth; const h = innerHeight;
+    for (let i = 0; i < 46; i++) {
+      const size = 10 + Math.random() * 30;
+      const el = this.bubble(Math.random() * w, h + 30, colors[i % colors.length], size);
+      const sway = (Math.random() - 0.5) * 120;
       el.animate([
-        { transform: 'translate(0,0) rotate(0)', opacity: 1 },
-        { transform: `translate(${sway}px,${h * 0.75}px) rotate(${360 + Math.random() * 540}deg)`, opacity: 0.9, offset: 0.85 },
-        { transform: `translate(${sway * 1.2}px,${h * 0.9}px) rotate(${720}deg)`, opacity: 0 },
-      ], { duration: 1600 + Math.random() * 1200, delay: Math.random() * 450, easing: 'cubic-bezier(.25,.6,.45,1)', fill: 'backwards' }).onfinish = () => el.remove();
+        { transform: 'translate(-50%,0) scale(.6)', opacity: 0 },
+        { transform: `translate(calc(-50% + ${sway * 0.4}px), ${-h * 0.35}px) scale(1)`, opacity: 0.95, offset: 0.35 },
+        { transform: `translate(calc(-50% + ${sway}px), ${-h * (0.75 + Math.random() * 0.3)}px) scale(1.08)`, opacity: 0 },
+      ], { duration: 2400 + Math.random() * 1600, delay: Math.random() * 600, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'backwards' }).onfinish = () => el.remove();
     }
   },
 };

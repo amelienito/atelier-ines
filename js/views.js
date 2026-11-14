@@ -1,8 +1,9 @@
 'use strict';
 /* =====================================================================
    ATELIER · affichage
-   Chaque projet est un livre : un dos en toile (ou avec sa photo de
-   couverture), un titre doré, et une étape faite = un filet doré.
+   Chaque livre est une carte qui se remplit de sa couleur, comme de
+   l'eau, au fil des étapes faites. Rien de rigide : des formes douces,
+   un fond qui respire, des gestes qui répondent.
    ===================================================================== */
 
 const ui = { sheet: null, pop: null, tab: 'today', expanded: null, flash: null, archFilter: 'tout', setTab: 'apparence' };
@@ -30,6 +31,7 @@ const ICONS = {
   download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"/>',
   upload: '<path d="M12 21V9M7 14l5-5 5 5M4 3h16"/>',
   books: '<path d="M4 4h4v16H4zM9 4h4v16H9z"/><path d="m14.5 5.2 3.9-1 3.6 14.6-3.9 1z"/>',
+  drop: '<path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11z"/>',
   stack: '<rect x="3" y="15" width="18" height="5" rx="1"/><rect x="5" y="9.5" width="15" height="5" rx="1"/><rect x="3.5" y="4" width="16" height="5" rx="1"/>',
 };
 const I = (n, s = 18) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
@@ -50,22 +52,33 @@ const ago = (t) => {
   return new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 };
 
-/* ---------- Le livre : variables visuelles d'un projet ---------- */
+/* ---------- Variables visuelles d'un livre ---------- */
+/* Niveau de remplissage : 0 à 1. Si une étape vient d'être cochée, on part
+   de l'ancien niveau pour que la couleur monte (ou descende) doucement. */
+function fillOf(p) {
+  const pr = progress(p); const ph = phase(p);
+  const lv = ph === 'livrables' || ph === 'fini' || p.archived ? 1 : pr.total ? pr.done / pr.total : 0;
+  const st = p.steps.find((x) => flashed(x.id));
+  const from = st && pr.total ? Math.min(1, Math.max(0, (pr.done + (st.done ? -1 : 1)) / pr.total)) : null;
+  return { lv, from };
+}
 function bookVars(p) {
-  const h = hashStr(p.id);
   const img = p.cover && p.cover.t === 'img';
   const u = img ? Covers.url(p.cover.key) : '';
+  const f = fillOf(p);
   return {
-    style: `--cl:${p.cloth};--off:${(h % 6) * 4}px;--tilt:${((h >> 3) % 7 - 3) * 0.12}deg;--th:${(h >> 6) % 4 * 2}px${u ? `;--img:url('${u}')` : ''}`,
-    ink: img ? 'gilt' : inkOn(p.cloth),
-    cls: img ? (u ? ' has-img' : ' img-wait') : '',
+    style: `--cl:${p.cloth};--p:${f.lv.toFixed(3)}${f.from !== null ? `;--p0:${f.from.toFixed(3)}` : ''}${u ? `;--img:url('${u}')` : ''}`,
+    ink: 'ink',
+    cls: (img ? (u ? ' has-img' : ' img-wait') : '') + (f.from !== null ? ' rise' : ''),
     cover: img ? ` data-cover="${esc(p.cover.key)}"` : '',
   };
 }
-/* Petit dos de livre (dans les listes) */
+/* L'eau colorée (deux vagues qui bougent lentement) */
+const LQ = '<span class="lq" aria-hidden="true"></span>';
+/* Pastille de couleur d'un livre */
 const chip = (p) => `<i class="chip" style="--cl:${p.cloth}" aria-hidden="true"></i>`;
 
-/* Filets dorés : une étape faite = un filet doré */
+/* Une bulle par étape : pleine quand elle est faite */
 function toolingHTML(p, nx = nextStep(p), cls = '') {
   const pr = progress(p); if (!pr.total) return '';
   return `<div class="tool ${cls}" role="img" aria-label="${pr.done} étapes faites sur ${pr.total}">${p.steps.map((s) => `<i class="${s.done ? 'g' : ''}${s === nx ? ' n' : ''}${flashed(s.id) ? ' just' : ''}"></i>`).join('')}${state.prefs.numbers ? `<span class="tool-n">${pr.done}/${pr.total}</span>` : ''}</div>`;
@@ -80,7 +93,7 @@ function applyPrefs() {
   document.body.classList.toggle('calm', calm());
   root.style.setProperty('--perso', state.sides.perso.color);
   root.style.setProperty('--pro', state.sides.pro.color);
-  const meta = $('meta[name="theme-color"]'); if (meta) meta.content = dark ? '#131b17' : '#cdc7bd';
+  const meta = $('meta[name="theme-color"]'); if (meta) meta.content = dark ? '#16132b' : '#f1edf6';
 }
 
 function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); renderSheet(); renderPop(); }
@@ -92,7 +105,7 @@ function renderTop() {
   const na = archivedProjects().length;
   $('#top').innerHTML = `
     <h1 class="wordmark">atelier</h1>
-    <p class="today-date">${esc(longToday())}</p>
+    <p class="today-date">${esc(greeting())}<span>${esc(longToday())}</span></p>
     <div class="top-actions">
       <button class="top-btn search" data-action="palette"><span>Chercher</span><kbd>${isMac ? '⌘' : 'Ctrl '}K</kbd></button>
       <button class="top-btn icon-only" data-action="palette" aria-label="Chercher">${I('search', 20)}</button>
@@ -100,6 +113,11 @@ function renderTop() {
       <button class="top-btn hide-phone" data-action="open-archives">Terminés${na ? `<span class="n">${na}</span>` : ''}</button>
       <button class="top-btn" data-action="open-settings" aria-label="Réglages"><span class="hide-phone">Réglages</span><span class="show-phone">${I('sliders', 20)}</span></button>
     </div>`;
+}
+function greeting() {
+  const h = new Date().getHours(); const who = (state.user || '').trim();
+  const w = h >= 5 && h < 12 ? 'Bonjour' : h >= 12 && h < 18 ? 'Bon après-midi' : 'Bonsoir';
+  return who ? `${w} ${who}` : w;
 }
 function syncBtn() {
   const map = {
@@ -141,7 +159,7 @@ function pileHTML(side) {
       <button class="new-btn" data-action="new-project" data-side="${side}">${I('plus', 17)}<span>Nouveau livre</span></button>
     </header>
     ${list.length ? `<ul class="pile" data-sortable="side-${side}">${list.map(spineHTML).join('')}</ul>`
-      : `<button class="spine-ghost" data-action="new-project" data-side="${side}">Aucun livre en cours. <b>Poser un nouveau livre</b></button>`}
+      : `<button class="spine-ghost" data-action="new-project" data-side="${side}"><span>${I('plus', 22)}</span>Aucun livre en cours ici.<b>Commencer un livre</b></button>`}
   </section>`;
 }
 
@@ -150,15 +168,16 @@ function spineHTML(p) {
   let line;
   if (ph === 'livrables') {
     const d = p.deliverables.filter((x) => x.done).length;
-    line = `<button class="ribbon" data-action="open-celebrate" data-id="${p.id}">Étapes finies, plus que les livrables (${d} sur ${p.deliverables.length})</button>`;
+    line = `<button class="ribbon" data-action="open-celebrate" data-id="${p.id}">${I('check', 14)}Plus que les livrables, ${d} sur ${p.deliverables.length}</button>`;
   } else if (nx) {
-    line = `<p class="sp-next"><em>ensuite</em>${esc(nx.name)}</p>`;
+    line = `<p class="sp-next"><em>Ensuite</em>${esc(nx.name)}</p>`;
   } else {
-    line = '<p class="sp-next"><em>aucune étape, ouvre le livre pour en ajouter</em></p>';
+    line = '<p class="sp-next"><em>Aucune étape pour l’instant, ouvre le livre pour en ajouter</em></p>';
   }
   const on = nx && inToday(p.id, nx.id);
   return `
-  <li class="spine ph-${ph}${b.cls}${flashed(p.id) ? ' flash' : ''}" data-id="${p.id}" data-action="open-project" data-ink="${b.ink}" style="${b.style}"${b.cover}>
+  <li class="spine ph-${ph}${b.cls}${flashed(p.id) ? ' flash' : ''}" data-id="${p.id}" data-action="open-project" style="${b.style}"${b.cover}>
+    ${LQ}
     <div class="sp-row">
       <h3 class="sp-title">${esc(p.title)}</h3>
       ${nx && ph !== 'livrables' ? `<span class="sp-acts">
@@ -171,23 +190,24 @@ function spineHTML(p) {
   </li>`;
 }
 
-/* ---------- Aujourd'hui (une feuille de papier) ---------- */
+/* ---------- Aujourd'hui ---------- */
 function todayHTML() {
   const es = todayEntries(); const done = es.filter((e) => e.done).length;
   const sug = suggestions(es.length ? 3 : 5);
+  const lv = es.length ? done / es.length : 0;
   return `
   <aside class="today">
     <header class="td-head">
-      <h2>Aujourd’hui</h2>
-      <div class="td-sub"><p class="td-date">${esc(longToday())}</p>${es.length ? `<p class="td-count">${done === es.length ? 'Tout est fait' : `<b>${done}</b> sur ${es.length}`}</p>` : ''}</div>
+      <div><h2>Aujourd’hui</h2><p class="td-date">${esc(longToday())}</p></div>
+      ${es.length ? `<div class="td-drop${done === es.length ? ' full' : ''}" style="--p:${lv.toFixed(3)}" role="img" aria-label="${done} fait sur ${es.length}">${LQ}<span class="td-count">${done === es.length ? I('check', 22) : `<b>${done}</b><small>sur ${es.length}</small>`}</span></div>` : ''}
     </header>
     ${es.length ? `<ul class="td-list" data-sortable="today">${es.map(todoHTML).join('')}</ul>` : '<p class="td-empty">Rien de prévu. Note une tâche ou pioche dans les étapes à suivre.</p>'}
     <label class="td-add">${I('plus', 18)}<input id="free-input" type="text" placeholder="Noter une tâche" data-enter="add-free" autocomplete="off" enterkeyhint="done"></label>
-    <button class="td-pick" data-action="open-picker">${I('stack', 17)}Choisir une étape d’un livre</button>
-    ${sug.length ? `<div class="td-sugg"><h4>À suivre</h4>${sug.map(({ p, st }) => `
-      <button class="sugg" data-action="today-add" data-p="${p.id}" data-s="${st.id}">
-        <span class="sugg-plus">${I('plus', 14)}</span><span class="sugg-txt"><b>${esc(st.name)}</b><small>${chip(p)}${esc(p.title)}</small></span>
-      </button>`).join('')}</div>` : ''}
+    ${sug.length ? `<div class="td-sugg"><h4>Pour la suite</h4><div class="sugg-list">${sug.map(({ p, st }) => `
+      <button class="sugg" data-action="today-add" data-p="${p.id}" data-s="${st.id}" style="--cl:${p.cloth}">
+        <span class="sugg-plus">${I('plus', 14)}</span><span class="sugg-txt"><b>${esc(st.name)}</b><small>${esc(p.title)}</small></span>
+      </button>`).join('')}</div></div>` : ''}
+    <button class="td-pick" data-action="open-picker">${I('stack', 17)}Choisir parmi toutes les étapes</button>
     ${miniOverviewHTML()}
   </aside>`;
 }
@@ -200,7 +220,7 @@ function todoHTML(e) {
     return `<li class="td-item free ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}">${box}
       <div class="td-txt"><input class="td-free" value="${esc(e.it.text)}" data-free="${e.it.id}" aria-label="Tâche" enterkeyhint="done"></div>${tag}${x}</li>`;
   }
-  return `<li class="td-item ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}">${box}
+  return `<li class="td-item ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}" style="--cl:${e.p.cloth}">${box}
     <div class="td-txt"><b>${esc(e.st.name)}</b><button class="td-book" data-action="open-project" data-id="${e.p.id}">${chip(e.p)}${esc(e.p.title)}</button></div>${tag}${x}</li>`;
 }
 /* Résumé de tous les livres (téléphone, sous « Aujourd'hui ») */
@@ -211,13 +231,13 @@ function miniOverviewHTML() {
   return `<div class="mini-ov"><h4>Tous les livres en cours</h4>${all.map((p) => {
     const pr = progress(p); const ph = phase(p);
     return `<button class="mini-row" data-action="open-project" data-id="${p.id}">${chip(p)}<b>${esc(p.title)}</b><span class="mini-n">${ph === 'livrables' ? 'livrables' : `${pr.done}/${pr.total}`}</span></button>`;
-  }).join('')}${na ? `<button class="mini-row mini-arch" data-action="open-archives">${I('books', 16)}<b>Étagère des terminés</b><span class="mini-n">${na}</span></button>` : ''}</div>`;
+  }).join('')}${na ? `<button class="mini-row mini-arch" data-action="open-archives">${I('books', 16)}<b>Livres terminés</b><span class="mini-n">${na}</span></button>` : ''}</div>`;
 }
 
 /* ---------- Vue d'ensemble : le grand cahier ---------- */
 function ledgerHTML() {
   const na = archivedProjects().length;
-  return `<header class="lg-head"><h2>Vue d’ensemble</h2><p>Une ligne par livre, une colonne par étape. Coche directement dans les cases.</p>
+  return `<header class="lg-head"><h2>Vue d’ensemble</h2><p>Une ligne par livre, une colonne par étape. Touche une pastille pour la cocher.</p>
       ${na ? `<button class="ghost-btn text" data-action="open-archives">${I('books', 16)}${plural(na, 'livre terminé', 'livres terminés')}</button>` : ''}</header>
     <div class="lg-tables">${SIDES.map(tableHTML).join('')}</div>`;
 }
@@ -227,7 +247,7 @@ function tableHTML(side) {
   const head = `<tr><th class="lg-name"></th><th class="lg-v"><span>Type</span></th>${cols.map((c) => `<th class="lg-v"><span>${esc(c.name)}</span></th>`).join('')}<th class="lg-v"><span>Autres</span></th><th class="lg-v"><span>Début</span></th><th class="lg-v"><span>Fin</span></th></tr>`;
   const rows = list.map((p) => {
     const others = p.steps.filter((s) => !s.tpl || !tplIds.has(s.tpl)); const od = others.filter((s) => s.done).length; const ty = typeOf(p);
-    return `<tr class="ph-${phase(p)}">
+    return `<tr class="ph-${phase(p)}" style="--cl:${p.cloth}">
       <th class="lg-name"><button data-action="open-project" data-id="${p.id}">${chip(p)}<span>${esc(p.title)}</span></button></th>
       <td>${ty ? `<span class="lg-type" style="--t:${ty.color}" title="${esc(ty.name)}"></span>` : ''}</td>
       ${cols.map((c) => {
@@ -323,7 +343,7 @@ function rowHTML(kind, p, x) {
   </li>`;
 }
 function clothPicker(action, current, extra = '') {
-  return `<div class="cloths">${CLOTHS.map(([n, hex]) => `<button class="cloth ${current === hex ? 'on' : ''}" style="--cl:${hex}" data-action="${action}" data-hex="${hex}"${extra} title="${n}" aria-label="Toile ${n}" aria-pressed="${current === hex}"></button>`).join('')}</div>`;
+  return `<div class="cloths">${CLOTHS.map(([n, hex]) => `<button class="cloth ${current === hex ? 'on' : ''}" style="--cl:${hex}" data-action="${action}" data-hex="${hex}"${extra} title="${n}" aria-label="Couleur ${n}" aria-pressed="${current === hex}">${I('check', 15)}</button>`).join('')}</div>`;
 }
 function pageHTML(m) {
   const p = P(m.id); if (!p) return '';
@@ -331,16 +351,22 @@ function pageHTML(m) {
   const dd = p.deliverables.filter((d) => d.done).length;
   const dateFr = (t) => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const hasImg = p.cover && p.cover.t === 'img';
+  const ty = typeOf(p);
+  const state1 = p.archived ? 'Terminé' : ph === 'livrables' ? 'Plus que les livrables' : pr.total ? `${pr.done} étape${pr.done > 1 ? 's' : ''} faite${pr.done > 1 ? 's' : ''} sur ${pr.total}` : 'Aucune étape';
   return `
   <div class="sheet-scroll book-scroll" data-action="close-self">
-    <article class="spread${b.cls}" style="${b.style}" data-ink="${b.ink}"${b.cover}>
-      <button class="book-close" data-action="close-sheet" aria-label="Fermer le livre">${I('x', 20)}</button>
+    <article class="spread${b.cls}" style="${b.style}"${b.cover}>
+      <header class="pg-hero">
+        ${LQ}
+        <button class="book-close" data-action="close-sheet" aria-label="Fermer">${I('x', 20)}</button>
+        <p class="pg-kicker"><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}${ty ? `<span class="pg-type" style="--t:${ty.color}">${esc(ty.name)}</span>` : ''}</p>
+        <textarea class="pg-title" data-pfield="title" rows="1" aria-label="Titre du livre" spellcheck="false">${esc(p.title)}</textarea>
+        <p class="pg-state">${state1}</p>
+      </header>
       <div class="leaves">
         <section class="leaf leaf-a">
-          <textarea class="pg-title" data-pfield="title" rows="1" aria-label="Titre du livre" spellcheck="false">${esc(p.title)}</textarea>
-          ${p.archived ? `<div class="banner"><span>Terminé${p.archivedAt ? ' le ' + dateFr(p.archivedAt) : ''}, rangé sur l’étagère.</span><button class="btn small" data-action="unarchive" data-id="${p.id}">Le remettre en cours</button></div>` : ''}
+          ${p.archived ? `<div class="banner"><span>Terminé${p.archivedAt ? ' le ' + dateFr(p.archivedAt) : ''}.</span><button class="btn small" data-action="unarchive" data-id="${p.id}">Le remettre en cours</button></div>` : ''}
           <div class="props">
-            <div class="prop"><span class="prop-k">Pile</span><div class="prop-v"><span class="pile-tag"><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}</span></div></div>
             <div class="prop"><span class="prop-k">Type</span><div class="prop-v chips">${sd.types.map((t) => `<button class="type-pick ${p.kind === t.name ? 'on' : ''}" style="--t:${t.color}" data-action="set-kind" data-id="${p.id}" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('') || '<span class="muted">Aucun type, à créer dans Réglages</span>'}</div></div>
             ${p.side === 'pro' || p.client || p.contact ? `
             <label class="prop"><span class="prop-k">Cliente</span><input class="prop-in" data-pfield="client" value="${esc(p.client)}" placeholder="Son nom" enterkeyhint="done"></label>
@@ -358,17 +384,17 @@ function pageHTML(m) {
 
           <div class="livr ${ph === 'livrables' ? 'is-due' : ''}">
             <div class="sec-head"><h3>Livrables de fin</h3><span class="sec-count">${dd} sur ${p.deliverables.length}</span></div>
-            <p class="sec-hint">${ph === 'livrables' ? 'Toutes les étapes sont faites. Coche le dossier et le livre ira sur l’étagère des terminés.' : 'Le dossier à préparer une fois toutes les étapes faites.'}</p>
+            <p class="sec-hint">${ph === 'livrables' ? 'Toutes les étapes sont faites. Coche le dossier et le livre passera dans les terminés.' : 'Le dossier à préparer une fois toutes les étapes faites.'}</p>
             <ul class="rows" data-sortable="livr">${p.deliverables.map((d) => rowHTML('livr', p, d)).join('')}</ul>
             <label class="add-row">${I('plus', 17)}<input id="livr-input" placeholder="Ajouter un livrable" data-enter="add-livr" data-id="${p.id}" autocomplete="off" enterkeyhint="done"></label>
           </div>
         </section>
 
         <section class="leaf leaf-c">
-          <div class="sec-head"><h3>Toile</h3></div>
+          <div class="sec-head"><h3>Couleur</h3></div>
           ${clothPicker('set-cloth', p.cloth, ` data-id="${p.id}"`)}
           <div class="photo-row">
-            <label class="btn">${I('image', 17)}${hasImg ? 'Changer la photo de couverture' : 'Mettre une photo de couverture'}<input type="file" accept="image/*" id="cover-file" hidden></label>
+            <label class="btn">${I('image', 17)}${hasImg ? 'Changer la photo' : 'Ajouter une photo'}<input type="file" accept="image/*" id="cover-file" hidden></label>
             ${hasImg ? `<button class="btn quiet" data-action="remove-photo" data-id="${p.id}">Retirer la photo</button>` : ''}
             ${m.busy ? '<span class="muted">Préparation de l’image…</span>' : ''}
           </div>
@@ -396,12 +422,13 @@ function newHTML(m) {
   return `
   ${sheetHead('Nouveau livre', sd.name)}
   <div class="sheet-scroll">
-    <div class="spine preview" style="--cl:${m.draft.cloth};--off:0px;--tilt:0deg;--th:4px" data-ink="${inkOn(m.draft.cloth)}">
+    <div class="spine preview" style="--cl:${m.draft.cloth};--p:.18">
+      ${LQ}
       <div class="sp-row"><h3 class="sp-title" id="np-title">${esc(m.draft.title || 'Titre du livre')}</h3></div>
-      <div class="tool">${Array.from({ length: Math.max(1, n) }, () => '<i></i>').join('')}</div>
+      <div class="sp-row2"><p class="sp-next"><em>${plural(n, 'étape', 'étapes')}</em></p></div>
     </div>
     <label class="field"><span class="field-k">Titre</span><input class="in big new-title" type="text" data-draft="title" value="${esc(m.draft.title)}" placeholder="Le Chant d’Achille" data-autofocus data-enter="create-project" autocomplete="off" enterkeyhint="go"></label>
-    <div class="field"><span class="field-k">Toile</span>${clothPicker('draft-cloth', m.draft.cloth)}</div>
+    <div class="field"><span class="field-k">Couleur</span>${clothPicker('draft-cloth', m.draft.cloth)}</div>
     ${sd.types.length ? `<div class="field"><span class="field-k">Type</span><div class="chips">${sd.types.map((t) => `<button class="type-pick ${m.draft.kind === t.name ? 'on' : ''}" style="--t:${t.color}" data-action="draft-kind" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('')}</div></div>` : ''}
     ${m.side === 'pro' ? `<div class="grid2">
       <label class="field"><span class="field-k">Cliente</span><input class="in" data-draft="client" value="${esc(m.draft.client)}" placeholder="Son nom" enterkeyhint="next"></label>
@@ -418,7 +445,7 @@ function newHTML(m) {
   </div>
   <div class="sheet-foot">
     <span class="muted">${plural(n, 'étape', 'étapes')}</span>
-    <button class="btn primary" data-action="create-project">Poser le livre sur la pile</button>
+    <button class="btn primary" data-action="create-project">Ajouter le livre</button>
   </div>`;
 }
 
@@ -427,7 +454,7 @@ function pickerHTML() {
   const block = (side) => {
     const sd = state.sides[side]; const list = activeProjects(side).filter((p) => nextStep(p));
     return `<div class="pick-side"><h3><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}</h3>${list.length ? list.map((p) => `
-      <div class="pick-book"><div class="pick-title">${chip(p)}${esc(p.title)}</div><div class="chips">${p.steps.filter((s) => !s.done).map((s, i) => {
+      <div class="pick-book" style="--cl:${p.cloth}"><div class="pick-title">${chip(p)}${esc(p.title)}</div><div class="chips">${p.steps.filter((s) => !s.done).map((s, i) => {
         const on = inToday(p.id, s.id);
         return `<button class="pick-chip ${on ? 'on' : ''} ${i === 0 ? 'first' : ''}" data-action="${on ? 'today-remove-step' : 'today-add'}" data-p="${p.id}" data-s="${s.id}">${on ? I('check', 13) : ''}${esc(s.name)}</button>`;
       }).join('')}</div></div>`).join('') : '<p class="muted">Rien en cours ici.</p>'}</div>`;
@@ -437,19 +464,19 @@ function pickerHTML() {
     <div class="sheet-foot"><button class="btn primary" data-action="close-sheet">C’est bon</button></div>`;
 }
 
-/* ---------- Étagère des livres terminés ---------- */
+/* ---------- Livres terminés ---------- */
 function archivesHTML() {
   const f = ui.archFilter; const all = archivedProjects(); const list = all.filter((p) => f === 'tout' || p.side === f);
   const year = new Date().getFullYear();
   const thisYear = all.filter((p) => p.archivedAt && new Date(p.archivedAt).getFullYear() === year).length;
   const sub = all.length ? `${plural(all.length, 'livre terminé', 'livres terminés')}, dont ${thisYear} en ${year}.` : '';
-  return `${sheetHead('Étagère', sub)}
+  return `${sheetHead('Livres terminés', sub)}
   <div class="sheet-scroll">
     <div class="seg">${[['tout', 'Tous'], ['perso', shortName('perso')], ['pro', shortName('pro')]].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-action="arch-filter" data-f="${k}">${esc(l)}</button>`).join('')}</div>
     ${list.length ? `<div class="shelf">${list.map((p) => {
-      const b = bookVars(p); const h = hashStr(p.id);
-      return `<button class="stand${b.cls}" style="${b.style};--w:${44 + (h % 5) * 6}px;--h:${196 + ((h >> 4) % 6) * 9}px" data-ink="${b.ink}"${b.cover} data-action="open-project" data-id="${p.id}" title="${esc(p.title)}${p.end ? ', fini le ' + shortDate(p.end) : ''}"><span>${esc(p.title)}</span></button>`;
-    }).join('')}</div>` : '<div class="empty-shelf"><p>L’étagère est vide pour l’instant. Chaque livre terminé viendra s’y ranger.</p></div>'}
+      const b = bookVars(p); const when = p.archivedAt ? new Date(p.archivedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+      return `<button class="stand${b.cls}" style="${b.style}"${b.cover} data-action="open-project" data-id="${p.id}">${LQ}<span class="st-t">${esc(p.title)}</span>${when ? `<small>Terminé le ${when}</small>` : ''}</button>`;
+    }).join('')}</div>` : '<div class="empty-shelf"><p>Aucun livre terminé pour l’instant. Ils viendront se ranger ici, remplis de leur couleur.</p></div>'}
   </div>`;
 }
 
@@ -467,15 +494,15 @@ function appearanceHTML() {
   const sw = (key, on, label, sub, local) => `<label class="switch-row"><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span><input type="checkbox" class="switch" ${on ? 'checked' : ''} data-${local ? 'local' : 'pref'}="${key}"></label>`;
   return `
     <div class="set-group"><h4>Thème</h4>${seg('theme', [['clair', 'Jour'], ['sombre', 'Nuit'], ['auto', 'Comme l’appareil']])}</div>
-    <div class="set-group"><h4>Livres sur les piles</h4>${seg('density', [['aeree', 'Épais, avec la prochaine étape'], ['compacte', 'Fins']])}</div>
+    <div class="set-group"><h4>Cartes des livres</h4>${seg('density', [['aeree', 'Détaillées, avec la prochaine étape'], ['compacte', 'Compactes']])}</div>
     <div class="set-group">
-      ${sw('numbers', pr.numbers, 'Afficher les chiffres', 'Par exemple « 4/10 » à côté des filets dorés')}
-      ${sw('tables', pr.tables, 'Vue d’ensemble sous les piles', 'Le grand tableau façon carnet')}
+      ${sw('numbers', pr.numbers, 'Afficher les chiffres', 'Par exemple « 4/10 » à côté des bulles d’étapes')}
+      ${sw('tables', pr.tables, 'Vue d’ensemble en bas de page', 'Le grand tableau façon carnet')}
     </div>
     <div class="set-group"><h4>Sur cet appareil</h4>
       ${sw('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour quand tu coches, sur iPhone et Android', true)}
       ${sw('sounds', LOCAL.sounds, 'Sons', 'Un petit tic quand tu coches', true)}
-      ${sw('calm', LOCAL.calm, 'Animations réduites', 'Pas de paillettes dorées ni de mouvements', true)}
+      ${sw('calm', LOCAL.calm, 'Animations réduites', 'Ni vagues, ni bulles, ni fond qui bouge', true)}
     </div>`;
 }
 function spacesSetHTML() {
@@ -565,16 +592,17 @@ function historyListHTML(m) {
 }
 
 /* ---------- Bienvenue / lien de connexion ---------- */
+const logoDrop = () => `<div class="logo-drop" style="--cl:${state ? state.sides.perso.color : '#ff8b74'};--p:.58">${LQ}</div>`;
 function welcomeHTML(m) {
   const msg = m.msg ? `<p class="msg ${m.err ? 'err' : 'ok'}">${esc(m.msg)}</p>` : '';
   if (m.link) {
-    return `<div class="sheet-scroll welcome"><p class="wordmark big">atelier</p>
+    return `<div class="sheet-scroll welcome">${logoDrop()}<p class="wordmark big">atelier</p>
       <h2>Connecter cet appareil ?</h2>
       <p class="lead">Il retrouvera tous les livres de l’atelier, et tout ce que tu feras ici sera enregistré en ligne.</p>${msg}
       <div class="btn-col"><button class="btn primary big" data-action="welcome-connect">Connecter</button><button class="btn quiet" data-action="close-sheet">Pas maintenant</button></div></div>`;
   }
-  return `<div class="sheet-scroll welcome"><p class="wordmark big">atelier</p>
-    <p class="lead">Les binds perso sur une pile, les commandes sur l’autre, et au milieu la feuille du jour.</p>
+  return `<div class="sheet-scroll welcome">${logoDrop()}<p class="wordmark big">atelier</p>
+    <p class="lead">Les binds perso d’un côté, les commandes de l’autre, et au milieu ce que tu fais aujourd’hui.</p>
     <div class="welcome-card"><b>Tu as reçu un lien de connexion ?</b>
       <label class="add-row boxed">${I('link', 17)}<input id="connect-input" placeholder="Colle-le ici" data-enter="connect" autocomplete="off" spellcheck="false"></label>
       <button class="btn primary" data-action="connect">Connecter</button>${msg}</div>
@@ -590,9 +618,9 @@ function celebrateHTML(m) {
   const p = P(m.id); if (!p) return '';
   const dd = p.deliverables.filter((d) => d.done).length; const b = bookVars(p);
   return `<div class="celebrate">
-    <div class="spine preview cel-spine${b.cls}" style="${b.style};--off:0px;--tilt:-1.5deg" data-ink="${b.ink}"${b.cover}><div class="sp-row"><h3 class="sp-title">${esc(p.title)}</h3></div>${toolingHTML(p, null)}</div>
+    <div class="spine preview cel-spine${b.cls}" style="${b.style}"${b.cover}>${LQ}<div class="sp-row"><h3 class="sp-title">${esc(p.title)}</h3></div>${toolingHTML(p, null)}</div>
     <h2>Toutes les étapes sont faites</h2>
-    <p>Avant de ranger ce livre sur l’étagère, il reste ton dossier de livrables.${p.side === 'pro' && (p.client || p.contact) ? ` Pour ${esc([p.client, p.contact].filter(Boolean).join(', '))}.` : ''}</p>
+    <p>Avant de le passer dans les terminés, il reste ton dossier de livrables.${p.side === 'pro' && (p.client || p.contact) ? ` Pour ${esc([p.client, p.contact].filter(Boolean).join(', '))}.` : ''}</p>
     <ul class="rows cel-list">${p.deliverables.map((d) => `<li class="row ${d.done ? 'done' : ''}${flashed(d.id) ? ' flash' : ''}" data-id="${d.id}"><button class="box" data-action="livr-toggle" data-p="${p.id}" data-d="${d.id}" aria-label="Cocher">${I('check', 14)}</button><span class="row-label">${esc(d.name)}</span></li>`).join('')}</ul>
     <div class="cel-foot"><span class="muted"><b>${dd}</b> sur ${p.deliverables.length}</span><button class="btn quiet" data-action="open-project" data-id="${p.id}">Ouvrir le livre</button><button class="btn primary" data-action="close-pop">Plus tard</button></div>
   </div>`;
@@ -613,7 +641,7 @@ function paletteItems(q) {
     .filter((p) => !f || fold(p.title).includes(f) || fold(p.client).includes(f) || fold(p.kind).includes(f))
     .sort((a, b) => a.archived - b.archived)
     .slice(0, f ? 8 : 5)
-    .forEach((p) => out.push({ ic: chip(p), label: esc(p.title), sub: (p.archived ? 'Sur l’étagère, ' : '') + state.sides[p.side].name, run: () => openSheet({ type: 'page', id: p.id }) }));
+    .forEach((p) => out.push({ ic: chip(p), label: esc(p.title), sub: (p.archived ? 'Terminé, ' : '') + state.sides[p.side].name, run: () => openSheet({ type: 'page', id: p.id }) }));
   if (f) {
     SIDES.forEach((side) => out.push({ ic: I('plus', 16), label: `Nouveau livre « ${esc(raw)} »`, sub: state.sides[side].name, run: () => openSheet({ type: 'new', side, draft: { title: raw } }) }));
     out.push({ ic: I('sun', 16), label: `Noter « ${esc(raw)} » pour aujourd’hui`, sub: 'Tâche libre', run: () => addFree(raw) });
@@ -621,7 +649,7 @@ function paletteItems(q) {
   const nav = [
     [I('plus', 16), `Nouveau livre, ${state.sides.perso.name}`, () => openSheet({ type: 'new', side: 'perso' })],
     [I('plus', 16), `Nouveau livre, ${state.sides.pro.name}`, () => openSheet({ type: 'new', side: 'pro' })],
-    [I('books', 16), 'Étagère des livres terminés', () => openSheet({ type: 'archives' })],
+    [I('books', 16), 'Livres terminés', () => openSheet({ type: 'archives' })],
     [I('sliders', 16), 'Apparence', () => openSettings('apparence')],
     [I('stack', 16), 'Étapes et livrables par défaut', () => openSettings('espaces')],
     [I('history', 16), 'Mémoire et synchro', () => openSettings('memoire')],

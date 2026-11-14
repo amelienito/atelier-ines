@@ -3,8 +3,8 @@
   "short_name": "Atelier",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#cdc7bd",
-  "theme_color": "#16161a",
+  "background_color": "#f1edf6",
+  "theme_color": "#f1edf6",
   "icons": [
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
     { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
