@@ -224,9 +224,9 @@ document.addEventListener('touchstart', (e) => {
   const scroller = $('.sheet-scroll', sheet);
   const top = sheet.getBoundingClientRect().top;
   const t = e.touches[0];
-  const inHead = t.clientY - top < 70 || e.target.closest('.sheet-head, .pop-head, .page-cover');
+  const inHead = t.clientY - top < 70 || e.target.closest('.sheet-head');
   if (!inHead && scroller && scroller.scrollTop > 0) return;
-  if (!inHead && !e.target.closest('.sheet-head, .pop-head, .page-cover')) return;
+  if (!inHead && !e.target.closest('.sheet-head')) return;
   Swipe.s = { sheet, y0: t.clientY, dy: 0, pop: sheet.classList.contains('pop') };
 }, { passive: true });
 document.addEventListener('touchmove', (e) => {

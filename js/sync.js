@@ -119,7 +119,7 @@ const Covers = {
       if (blob) {
         const u = URL.createObjectURL(blob);
         this.urls.set(key, u);
-        $$(`[data-cover="${key}"]`).forEach((el) => { el.style.backgroundImage = `url("${u}")`; el.classList.add('has-img'); el.classList.remove('img-wait'); });
+        $$(`[data-cover="${key}"]`).forEach((el) => { el.style.setProperty('--img', `url("${u}")`); el.classList.add('has-img'); el.classList.remove('img-wait'); });
       } else this.failed.add(key);
     } catch (e) { this.failed.add(key); } finally { this.busy.delete(key); }
   },

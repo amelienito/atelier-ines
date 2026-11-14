@@ -112,7 +112,9 @@ function toggleTheme() {
   commit(() => { state.prefs.theme = dark ? 'clair' : 'sombre'; state.prefsU = now(); });
 }
 function shake(sel) { const el = $(sel); if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); el.focus(); Haptic.tap(); }
-const sparkColors = (side) => [sideColor(side), '#ffd166', '#ffffff', '#ff9fb8'];
+/* Paillettes de dorure (couleur de la toile en plus) */
+const GOLD = ['#e8c766', '#c79528', '#f3dc94', '#a87a18'];
+const sparkColors = (cloth) => [...GOLD, cloth || '#c79528'];
 
 /* ---------- Étapes ---------- */
 function setStepDone(pid, sid, value, el) {
@@ -130,10 +132,10 @@ function setStepDone(pid, sid, value, el) {
     outcome = afterStepChange(p);
     if (outcome === 'archive') archiveProject(p);
   }, { pop: false });
-  if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.side), 12); } else Haptic.tap();
+  if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.cloth), 12); } else Haptic.tap();
   if (outcome === 'livrables' && before !== 'livrables') {
     setTimeout(() => {
-      Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.side));
+      Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.cloth));
       openPop({ type: 'celebrate', id: p.id });
     }, 260);
   } else renderPop();
@@ -142,15 +144,15 @@ function setStepDone(pid, sid, value, el) {
 }
 function celebrateDone(p) {
   setTimeout(() => {
-    Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.side));
-    toast(`« ${p.title} » est terminé ✨ Rangé avec tes livres terminés`, { action: 'Annuler', onAction: () => Undo.undo() });
+    Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.cloth));
+    toast(`« ${p.title} » est terminé et rangé sur l’étagère`, { action: 'Annuler', onAction: () => Undo.undo() });
   }, 150);
 }
 function checkDayDone() {
   const es = todayEntries();
   if (es.length > 1 && es.every((e) => e.done) && ui.dayDone !== state.today.date) {
     ui.dayDone = state.today.date;
-    setTimeout(() => { toast('Journée bouclée ✨ Tout ce que tu avais prévu est fait'); FX.rain(['#ffd166', '#ffb36b', '#ff9fb8', '#9be7c4']); }, 500);
+    setTimeout(() => { toast('Journée bouclée : tout ce qui était prévu est fait'); FX.rain(GOLD); }, 500);
   }
 }
 function addFree(text) {
@@ -224,17 +226,17 @@ const actions = {
     const m = ui.sheet; if (!m || m.type !== 'new') return;
     const t = $('.new-title'); if (t) m.draft.title = t.value;
     if (!m.draft.title.trim()) { shake('.new-title'); return; }
-    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, icon: m.draft.icon });
+    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, cloth: m.draft.cloth });
     ui.flash = new Set([p.id]);
     ui.sheet = null;
     commit(() => { state.projects.unshift(p); state.orderU = now(); });
     if (innerWidth < 700) { ui.tab = p.side; renderTabbar(); renderMain(); }
     Haptic.tap(); Sound.play('add');
     requestAnimationFrame(() => {
-      const card = $(`.card[data-id="${p.id}"]`);
-      if (card) { card.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); FX.burst(FX.at($('.card-icon', card)), sparkColors(p.side), 14); }
+      const card = $(`.spine[data-id="${p.id}"]`);
+      if (card) { card.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); FX.burst(FX.at(card), sparkColors(p.cloth), 16); }
     });
-    toast(`« ${p.title} » est dans l’atelier`);
+    toast(`« ${p.title} » est posé sur la pile`);
   },
 
   /* étapes */
@@ -270,7 +272,7 @@ const actions = {
       d.done = nv; p.u = now();
       if (p.steps.length && p.steps.every((s) => s.done) && p.deliverables.every((x) => x.done)) { archiveProject(p); archived = true; }
     }, { pop: false });
-    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.side), 10); } else Haptic.tap();
+    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.cloth), 10); } else Haptic.tap();
     if (archived) {
       ui.pop = null; renderPop();
       if (ui.sheet && ui.sheet.type === 'page' && ui.sheet.id === p.id) closeSheet();
@@ -290,12 +292,12 @@ const actions = {
     const p = P(el.dataset.id); if (!p) return;
     ui.sheet = null;
     commit(() => archiveProject(p));
-    toast(`« ${p.title} » rangé avec les livres terminés`, { action: 'Annuler', onAction: () => Undo.undo() });
+    toast(`« ${p.title} » est rangé sur l’étagère`, { action: 'Annuler', onAction: () => Undo.undo() });
   },
   unarchive(el) {
     const p = P(el.dataset.id); if (!p) return;
     commit(() => { p.archived = false; p.archivedAt = null; p.u = now(); state.orderU = now(); });
-    toast(`« ${p.title} » est de retour dans l’atelier`);
+    toast(`« ${p.title} » est de retour sur sa pile`);
   },
   duplicate(el) {
     const p = P(el.dataset.id); if (!p) return;
@@ -331,7 +333,7 @@ const actions = {
     const nv = !it.done; const pt = FX.at(el);
     if (nv) ui.flash = new Set([it.id]);
     commit(() => { it.done = nv; state.today.u = now(); });
-    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, ['#ffd166', '#f4a52b', '#ffffff', '#ff9fb8'], 10); } else Haptic.tap();
+    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, GOLD, 10); } else Haptic.tap();
     checkDayDone();
   },
   'toggle-today'(el) {
@@ -342,33 +344,24 @@ const actions = {
       state.today.u = now();
     });
     Haptic.tap();
-    if (!on) { Sound.play('add'); FX.burst(pt, ['#ffd166', '#ffb703', '#ffe8a3'], 9, 0.7); }
+    if (!on) { Sound.play('add'); FX.burst(pt, GOLD, 9, 0.7); }
   },
   'today-add'(el) {
     const { p, s } = el.dataset; if (inToday(p, s)) return;
     const pt = FX.at(el); const id = uid();
     ui.flash = new Set([id]);
     commit(() => { state.today.items.push({ id, projectId: p, stepId: s }); state.today.u = now(); });
-    Haptic.tap(); Sound.play('add'); FX.burst(pt, ['#ffd166', '#ffb703', '#ffe8a3'], 9, 0.7);
+    Haptic.tap(); Sound.play('add'); FX.burst(pt, GOLD, 9, 0.7);
   },
   'today-remove'(el) { commit(() => { state.today.items = state.today.items.filter((it) => it.id !== el.dataset.id); state.today.u = now(); }); },
   'today-remove-step'(el) { commit(() => { state.today.items = state.today.items.filter((it) => !(it.projectId === el.dataset.p && it.stepId === el.dataset.s)); state.today.u = now(); }); Haptic.tap(); },
   'add-free'() { const inp = $('#free-input'); const v = inp.value.trim(); if (!v) return; addFree(v); setTimeout(() => { const i = $('#free-input'); if (i) i.focus(); }, 0); },
 
-  /* emojis & couvertures */
-  'pick-emoji'(el) { openPop({ type: 'emoji', target: el.dataset.target, id: el.dataset.id, side: el.dataset.side }); },
-  'emoji-set'(el) { setEmoji(el.dataset.e); },
-  'emoji-custom'() {
-    const v = ($('#emoji-input').value || '').trim(); if (!v) return;
-    const first = window.Intl && Intl.Segmenter ? [...new Intl.Segmenter('fr', { granularity: 'grapheme' }).segment(v)][0].segment : Array.from(v)[0];
-    setEmoji(first);
-  },
-  'pick-cover'(el) { openPop({ type: 'cover', id: el.dataset.id }); },
-  'cover-set'(el) {
-    const p = P(ui.pop.id); if (!p) return;
-    commit(() => { p.cover = el.dataset.v ? { t: 'grad', v: el.dataset.v } : null; p.u = now(); });
-    Haptic.tap(); closePop();
-  },
+  /* toile & photo */
+  'set-cloth'(el) { const p = P(el.dataset.id); if (!p) return; commit(() => { p.cloth = el.dataset.hex; p.u = now(); }); Haptic.tap(); },
+  'draft-cloth'(el) { if (!ui.sheet || !ui.sheet.draft) return; ui.sheet.draft.cloth = el.dataset.hex; renderSheet(); Haptic.tap(); },
+  'remove-photo'(el) { const p = P(el.dataset.id); if (!p) return; commit(() => { p.cover = null; p.u = now(); }); },
+  'close-self'(el, e) { if (e.target === el) closeSheet(); },
 
   /* réglages */
   'set-pref'(el) { commit(() => { state.prefs[el.dataset.k] = el.dataset.v; state.prefsU = now(); }); Haptic.tap(); },
@@ -403,18 +396,18 @@ const actions = {
     const err = await Sync.connect(cfg);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
     Haptic.tap(true);
-    if (m.type === 'welcome') closeSheet(); else { m.msg = 'Connecté ✓ Tout est maintenant enregistré en ligne.'; m.err = false; renderSheet(); }
-    toast('Connecté ✨ Tout est enregistré en ligne');
+    if (m.type === 'welcome') closeSheet(); else { m.msg = 'Connecté. Tout est maintenant enregistré en ligne.'; m.err = false; renderSheet(); }
+    toast('Connecté : tout est enregistré en ligne');
   },
   async 'welcome-connect'() {
     const m = ui.sheet; m.msg = 'Connexion…'; m.err = false; renderSheet();
     const err = await Sync.connect(m.cfg);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
     Haptic.tap(true); closeSheet();
-    toast('Cet appareil est connecté ✨');
+    toast('Cet appareil est connecté');
   },
   'start-blank'() { state = freshState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); },
-  'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. « Repartir de zéro » est dans Réglages.'); },
+  'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. Pour les effacer : Réglages, Mémoire et synchro, Repartir de zéro.'); },
   async 'copy-link'() {
     try { await navigator.clipboard.writeText(Link.make()); toast('Lien copié : ouvre-le sur l’autre appareil'); Haptic.tap(); } catch (e) { toast('Copie impossible ici : utilise « Envoyer… »'); }
   },
@@ -464,14 +457,6 @@ const actions = {
   'ask-no'() { closePop(); },
 };
 
-function setEmoji(e) {
-  const m = ui.pop; if (!m || !e) return;
-  if (m.target === 'new' && ui.sheet && ui.sheet.draft) { ui.sheet.draft.icon = e; closePop(); renderSheet(); }
-  else if (m.target === 'project') { const p = P(m.id); if (p) commit(() => { p.icon = e; p.u = now(); }); closePop(); }
-  else if (m.target === 'space') { commit(() => { state.sides[m.side].emoji = e; state.sidesU = now(); }); closePop(); }
-  Haptic.tap();
-}
-
 /* =====================================================================
    ÉVÉNEMENTS
    ===================================================================== */
@@ -481,6 +466,7 @@ document.addEventListener('click', (e) => {
   if (!el) return;
   const fn = actions[el.dataset.action];
   if (!fn) return;
+  if (el.dataset.action === 'close-self' && e.target !== el) return;
   e.preventDefault();
   fn(el, e);
 }, true);
@@ -530,7 +516,11 @@ function applyEdit(t) {
 const editTimers = new WeakMap();
 document.addEventListener('input', (e) => {
   const t = e.target;
-  if (t.dataset.draft && ui.sheet && ui.sheet.type === 'new') { ui.sheet.draft[t.dataset.draft] = t.value; return; }
+  if (t.dataset.draft && ui.sheet && ui.sheet.type === 'new') {
+    ui.sheet.draft[t.dataset.draft] = t.value;
+    if (t.dataset.draft === 'title') { const pv = $('#np-title'); if (pv) pv.textContent = t.value || 'Titre du livre'; }
+    return;
+  }
   if (t.id === 'pal-input' && ui.pop && ui.pop.type === 'palette') { ui.pop.q = t.value; ui.pop.sel = 0; $('.pal-list').innerHTML = paletteListHTML(ui.pop); return; }
   if (t.tagName === 'TEXTAREA') autoGrow(t);
   // enregistre en direct les champs des fenêtres (sans attendre la sortie du champ)
@@ -545,12 +535,13 @@ document.addEventListener('change', (e) => {
   if (t.dataset.pref !== undefined) { commit(() => { state.prefs[t.dataset.pref] = t.checked; state.prefsU = now(); }, { sheet: false }); Haptic.tap(); return; }
   if (t.dataset.local !== undefined) { LOCAL[t.dataset.local] = t.checked; saveLocalPrefs(); applyPrefs(); if (t.checked && t.dataset.local === 'haptics') Haptic.tap(); if (t.checked && t.dataset.local === 'sounds') Sound.play('tick'); return; }
   if (t.id === 'cover-file' && t.files[0]) {
-    const p = P(ui.pop && ui.pop.id); if (!p) return;
-    ui.pop.busy = true; renderPop();
+    const m = ui.sheet; const p = P(m && m.id); if (!p) return;
+    m.busy = true; renderSheet();
     Covers.fromFile(t.files[0]).then((key) => {
+      m.busy = false;
       commit(() => { p.cover = { t: 'img', key }; p.u = now(); });
-      closePop(); Haptic.tap(); Sync.pushCovers();
-    }).catch(() => { if (ui.pop) { ui.pop.busy = false; renderPop(); } toast('Cette image n’a pas pu être lue (essaie une photo JPG ou PNG)'); });
+      Haptic.tap(); Sync.pushCovers();
+    }).catch(() => { m.busy = false; renderSheet(); toast('Cette image n’a pas pu être lue. Essaie une photo JPG ou PNG.'); });
     return;
   }
   if (t.id === 'import-file' && t.files[0]) {
@@ -592,5 +583,5 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Enter' && !e.shiftKey && t.dataset && t.dataset.enter) { e.preventDefault(); actions[t.dataset.enter](t); return; }
-  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.page-title, .row-name, .space-name, .todo-free, .prop-in, .in')) { e.preventDefault(); t.blur(); }
+  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.pg-title, .row-name, .pile-name, .td-free, .prop-in, .in')) { e.preventDefault(); t.blur(); }
 });

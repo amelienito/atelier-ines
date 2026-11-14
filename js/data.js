@@ -13,51 +13,40 @@ const DEFAULT_OWNER = 'amelienito';
 const DEFAULT_REPO = 'atelier-ines-data';
 const SIDES = ['perso', 'pro'];
 
-/* ---------- Couleurs proposées pour les espaces et les types ---------- */
-const PALETTE = [
-  ['Framboise', '#e0457b'], ['Corail', '#ec6550'], ['Abricot', '#ee8a2e'], ['Miel', '#cf9a10'],
-  ['Sauge', '#679a5f'], ['Sapin', '#1f8460'], ['Lagon', '#1595aa'], ['Bleuet', '#4673e8'],
-  ['Lavande', '#8564e8'], ['Prune', '#a1468b'], ['Rose poudré', '#d4789a'], ['Ardoise', '#55627b'],
+/* ---------- Toiles de reliure : couleur de chaque livre et des espaces ---------- */
+const CLOTHS = [
+  ['Bordeaux', '#6b1f2a'], ['Vermillon', '#b5332a'], ['Rouille', '#97461f'], ['Moutarde', '#c2902a'],
+  ['Mousse', '#5c6a2c'], ['Forêt', '#1e4637'], ['Paon', '#0d5a62'], ['Encre', '#1d2945'],
+  ['Prune', '#4a2446'], ['Vieux rose', '#b06873'], ['Lin', '#c4b89f'], ['Noir', '#1b1a1d'],
 ];
+/* Couleurs des pastilles de type */
+const PALETTE = [
+  ['Framboise', '#d0436f'], ['Corail', '#e0603f'], ['Abricot', '#e5862b'], ['Miel', '#c9970f'],
+  ['Sauge', '#5f9457'], ['Sapin', '#1f8460'], ['Lagon', '#1593a8'], ['Bleuet', '#4470e0'],
+  ['Lavande', '#7e5fe0'], ['Prune', '#9a4386'], ['Rose poudré', '#cf7395'], ['Ardoise', '#55627b'],
+];
+/* Anciennes couvertures en dégradé → toile la plus proche */
+const GRAD_TO_CLOTH = { aube: '#b06873', peche: '#b06873', soleil: '#c2902a', menthe: '#5c6a2c', lagon: '#0d5a62', ciel: '#1d2945', lavande: '#4a2446', pierre: '#c4b89f', braise: '#b5332a', foret: '#1e4637', nuit: '#4a2446', encre: '#1d2945' };
 
-/* ---------- Couvertures en dégradé ---------- */
-const COVERS = {
-  aube: 'linear-gradient(135deg,#ffc6d4,#ffe0ba)',
-  peche: 'linear-gradient(135deg,#ffd2b3,#ffbccd)',
-  soleil: 'linear-gradient(135deg,#ffe48f,#ffb27a)',
-  menthe: 'linear-gradient(135deg,#c4f0d4,#d5ecff)',
-  lagon: 'linear-gradient(135deg,#aee8de,#b6cbfb)',
-  ciel: 'linear-gradient(160deg,#c3dcff,#ecdcff)',
-  lavande: 'linear-gradient(135deg,#d9cbff,#ffcfe9)',
-  pierre: 'linear-gradient(135deg,#d7d9e2,#efedf3)',
-  braise: 'linear-gradient(135deg,#d6455d,#f4a15a)',
-  foret: 'linear-gradient(135deg,#2c6b53,#8ac39e)',
-  nuit: 'linear-gradient(135deg,#27254d,#7a4d98)',
-  encre: 'linear-gradient(135deg,#1d2231,#46526d)',
-};
-
-const EMOJIS = ('📚 📖 📕 📗 📘 📙 📓 📔 📒 📜 🔖 ✂️ 🧵 🪡 🧶 🎀 🖌️ 🖋️ ✏️ 📐 📎 🏷️ 💌 📦 🎁 ' +
-  '🌸 🌷 🌹 🌻 🌼 🍀 🌿 🍂 🍁 🌙 ⭐ ✨ 🌈 ☀️ 🔥 💧 ❄️ 🌊 ❤️ 🧡 💛 💚 💙 💜 🖤 🤍 💕 ' +
-  '🦋 🐉 🐺 🦊 🐈‍⬛ 🦢 🕯️ 🗝️ 🗡️ 🛡️ 👑 💎 🍷 ☕ 🍓 🍒 🎭 🎻 🪐 🏰 ⚔️ 🌑 🪞 🫖 🧸').split(' ');
 const BOOK_EMOJIS = ['📕', '📗', '📘', '📙', '📓', '📔', '📒'];
 
 /* ---------- Modèles par défaut (tout est modifiable dans Réglages) ---------- */
 const DEFAULT_SIDES = {
   perso: {
-    name: 'Bibliothèque perso', emoji: '📚', color: '#e0457b',
+    name: 'Bibliothèque perso', emoji: '📚', color: '#b5332a',
     steps: ['Typeset', 'Impression', 'Couture', 'Colle', 'Maquette', 'Découpe carton',
       'Découpe Cricut', 'Impression couverture', 'Vinyle', 'Assemblage final'],
     deliverables: ['Dossier du projet', 'Fichiers typeset + maquette rangés', 'Photos du bind'],
-    types: [['Fanfic', '#8564e8'], ['Bind exchange', '#ee8a2e']],
+    types: [['Fanfic', '#7e5fe0'], ['Bind exchange', '#e5862b']],
   },
   pro: {
-    name: 'Activité pro', emoji: '✂️', color: '#1f8460',
+    name: 'Activité pro', emoji: '✂️', color: '#0d5a62',
     steps: ['Création maquette', 'Envoi maquette', 'Validation maquette', 'Règlement acompte',
       'Commande matériel (si besoin)', 'Découpe carton', 'Impression couv + découpe Cricut',
       'Vinyle', 'Impression page de garde', 'Assemblage du livre', 'Photo du livre',
       'Envoi + validation photo', 'Règlement final', 'Envoi commande'],
     deliverables: ['Dossier du projet', 'Maquette finale (PDF)', 'Fichier de découpe Cricut', 'Photos du livre'],
-    types: [['Couverture', '#4673e8'], ['Rebind', '#8564e8']],
+    types: [['Couverture', '#4470e0'], ['Rebind', '#9a4386']],
   },
 };
 const DEFAULT_PREFS = { theme: 'auto', bg: 'doux', density: 'aeree', progress: 'perles', numbers: false, tables: true };
@@ -79,6 +68,14 @@ const hid = (prefix, s) => prefix + hashStr(s).toString(36);
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const isHex = (c) => /^#[0-9a-f]{6}$/i.test(c || '');
 const defaultIcon = (id) => BOOK_EMOJIS[hashStr(id) % BOOK_EMOJIS.length];
+const defaultCloth = (id) => CLOTHS[hashStr('t' + id) % (CLOTHS.length - 2)][1];
+/* Contraste : texte doré ou encre selon la toile */
+function lum(hex) {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+const inkOn = (hex) => (contrast(hex, '#f2d991') >= contrast(hex, '#1d1b18') ? 'gilt' : 'ink');
 const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 
 /* =====================================================================
@@ -113,7 +110,7 @@ function buildProject(s, side, title, o = {}) {
   const id = uid();
   return {
     id, side, title: String(title || '').trim() || 'Sans titre',
-    icon: o.icon || defaultIcon(id), cover: o.cover || null,
+    icon: o.icon || defaultIcon(id), cloth: o.cloth || defaultCloth(id), cover: o.cover || null,
     kind: o.kind || '', client: o.client || '', contact: o.contact || '', notes: '',
     steps: [
       ...sd.steps.filter((t) => !skip.has(t.id) && !skip.has(t.name)).map((t) => ({ id: uid(), tpl: t.id, name: t.name, done: false })),
@@ -135,11 +132,11 @@ function seedState() {
     s.projects.push(p);
     return p;
   };
-  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Fanfic', icon: '💕', cover: { t: 'grad', v: 'lavande' } });
-  mk('perso', 'Green Light', 0, { icon: '🌿', cover: { t: 'grad', v: 'menthe' }, skip: ['Découpe Cricut'] });
-  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', icon: '⚔️', cover: { t: 'grad', v: 'nuit' } });
-  mk('pro', 'Eragon', 5, { kind: 'Rebind', icon: '🐉', cover: { t: 'grad', v: 'braise' } });
-  mk('pro', 'Les Liaisons dangereuses', 5, { kind: 'Rebind', icon: '🌹', cover: { t: 'grad', v: 'peche' } });
+  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Fanfic', cloth: '#b06873' });
+  mk('perso', 'Green Light', 0, { cloth: '#5c6a2c', skip: ['Découpe Cricut'] });
+  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', cloth: '#1d2945', client: 'Camille' });
+  mk('pro', 'Eragon', 5, { kind: 'Rebind', cloth: '#b5332a' });
+  mk('pro', 'Les Liaisons dangereuses', 5, { kind: 'Couverture', cloth: '#4a2446' });
   s.today.items = [
     { id: uid(), projectId: jl.id, stepId: jl.steps[3].id },
     { id: uid(), projectId: ce.id, stepId: ce.steps[5].id },
@@ -184,7 +181,7 @@ function normSide(sd, side) {
   return {
     name: String(sd.name || '').trim() || d.name,
     emoji: String(sd.emoji || '').trim() || d.emoji,
-    color: isHex(sd.color) ? sd.color.toLowerCase() : d.color,
+    color: isHex(sd.color) && !['#e0457b', '#1f8460'].includes(sd.color.toLowerCase()) ? sd.color.toLowerCase() : d.color,
     steps: list(sd.steps, d.steps),
     deliverables: list(sd.deliverables, d.deliverables),
     types: list(sd.types, d.types, (x) => ({ color: isHex(x.color) ? x.color.toLowerCase() : '#8564e8' })),
@@ -192,7 +189,6 @@ function normSide(sd, side) {
 }
 
 function normCover(c) {
-  if (c && c.t === 'grad' && COVERS[c.v]) return { t: 'grad', v: c.v };
   if (c && c.t === 'img' && typeof c.key === 'string' && c.key) return { t: 'img', key: c.key };
   return null;
 }
@@ -213,6 +209,7 @@ function normProject(p, sd) {
   return {
     id: String(p.id), side: p.side, title: String(p.title || '').trim() || 'Sans titre',
     icon: String(p.icon || '').trim() || defaultIcon(String(p.id)),
+    cloth: isHex(p.cloth) ? p.cloth.toLowerCase() : (p.cover && p.cover.t === 'grad' && GRAD_TO_CLOTH[p.cover.v]) || defaultCloth(String(p.id)),
     cover: normCover(p.cover),
     kind: str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
     steps, deliverables,

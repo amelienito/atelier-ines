@@ -13,6 +13,7 @@
   if (rollDay() && had) saveLocal();
   Sync.load();
   renderAll();
+  setTimeout(() => document.body.classList.remove('intro'), 1400);
 
   /* Lien de connexion reçu (…#connecter=…) */
   const linkCfg = location.hash.includes('connecter=') ? Link.parse(location.hash) : null;
