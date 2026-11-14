@@ -81,7 +81,7 @@ const chip = (p) => `<i class="chip" style="--cl:${p.cloth}" aria-hidden="true">
 /* Une bulle par étape : pleine quand elle est faite */
 function toolingHTML(p, nx = nextStep(p), cls = '') {
   const pr = progress(p); if (!pr.total) return '';
-  return `<div class="tool ${cls}" role="img" aria-label="${pr.done} étapes faites sur ${pr.total}">${p.steps.map((s) => `<i class="${s.done ? 'g' : ''}${s === nx ? ' n' : ''}${flashed(s.id) ? ' just' : ''}"></i>`).join('')}${state.prefs.numbers ? `<span class="tool-n">${pr.done}/${pr.total}</span>` : ''}</div>`;
+  return `<div class="tool ${cls}" role="img" aria-label="${pr.done} étapes faites sur ${pr.total}">${p.steps.map((s) => `<i class="${s.done ? 'g' : ''}${s === nx ? ' n' : ''}${flashed(s.id) ? ' just' : ''}"></i>`).join('')}<span class="tool-n">${pr.done} sur ${pr.total}</span></div>`;
 }
 
 /* ---------- Apparence générale ---------- */
@@ -104,7 +104,7 @@ function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); 
 function renderTop() {
   const na = archivedProjects().length;
   $('#top').innerHTML = `
-    <h1 class="wordmark">atelier</h1>
+    <h1 class="logo" role="img" aria-label="Parinès, atelier"></h1>
     <p class="today-date">${esc(greeting())}<span>${esc(longToday())}</span></p>
     <div class="top-actions">
       <button class="top-btn search" data-action="palette"><span>Chercher</span><kbd>${isMac ? '⌘' : 'Ctrl '}K</kbd></button>
@@ -165,27 +165,29 @@ function pileHTML(side) {
 
 function spineHTML(p) {
   const ph = phase(p); const nx = nextStep(p); const ty = typeOf(p); const b = bookVars(p);
+  const on = nx && inToday(p.id, nx.id);
   let line;
   if (ph === 'livrables') {
     const d = p.deliverables.filter((x) => x.done).length;
-    line = `<button class="ribbon" data-action="open-celebrate" data-id="${p.id}">${I('check', 14)}Plus que les livrables, ${d} sur ${p.deliverables.length}</button>`;
+    line = `<button class="ribbon" data-action="open-celebrate" data-id="${p.id}">${I('check', 15)}Plus que les livrables, ${d} sur ${p.deliverables.length}</button>`;
   } else if (nx) {
-    line = `<p class="sp-next"><em>Ensuite</em>${esc(nx.name)}</p>`;
+    /* La prochaine étape a sa propre case : on la coche là où on la lit */
+    line = `<div class="sp-step">
+      <button class="box sp-box" data-action="quick-done" data-p="${p.id}" data-s="${nx.id}" aria-label="Cocher « ${esc(nx.name)} »">${I('check', 15)}</button>
+      <p class="sp-next"><em>Ensuite</em>${esc(nx.name)}</p>
+      <button class="sp-sun ${on ? 'on' : ''}" data-action="toggle-today" data-p="${p.id}" data-s="${nx.id}" aria-pressed="${on}" title="${on ? 'Retirer d’aujourd’hui' : 'Prévoir pour aujourd’hui'}">${I('sun', 18)}<span>${on ? 'Aujourd’hui' : 'Pour aujourd’hui'}</span></button>
+    </div>`;
   } else {
-    line = '<p class="sp-next"><em>Aucune étape pour l’instant, ouvre le livre pour en ajouter</em></p>';
+    line = '<p class="sp-next sp-none">Aucune étape pour l’instant. Ouvre le livre pour en ajouter.</p>';
   }
-  const on = nx && inToday(p.id, nx.id);
   return `
   <li class="spine ph-${ph}${b.cls}${flashed(p.id) ? ' flash' : ''}" data-id="${p.id}" data-action="open-project" style="${b.style}"${b.cover}>
     ${LQ}
     <div class="sp-row">
       <h3 class="sp-title">${esc(p.title)}</h3>
-      ${nx && ph !== 'livrables' ? `<span class="sp-acts">
-        <button class="sp-btn sun ${on ? 'on' : ''}" data-action="toggle-today" data-p="${p.id}" data-s="${nx.id}" title="${on ? 'Retirer d’aujourd’hui' : 'Faire aujourd’hui'}" aria-pressed="${on}">${I('sun', 17)}</button>
-        <button class="sp-btn done" data-action="quick-done" data-p="${p.id}" data-s="${nx.id}" title="« ${esc(nx.name)} » est faite" aria-label="Marquer « ${esc(nx.name)} » comme faite">${I('check', 17)}</button>
-      </span>` : ''}
+      ${ty || p.client ? `<span class="sp-tags">${ty ? `<span>${esc(ty.name)}</span>` : ''}${p.client ? `<span>pour ${esc(p.client)}</span>` : ''}</span>` : ''}
     </div>
-    <div class="sp-row2">${line}${ty || p.client ? `<span class="sp-tags">${ty ? `<span>${esc(ty.name)}</span>` : ''}${p.client ? `<span>pour ${esc(p.client)}</span>` : ''}</span>` : ''}</div>
+    ${line}
     ${toolingHTML(p, nx)}
   </li>`;
 }
@@ -425,7 +427,7 @@ function newHTML(m) {
     <div class="spine preview" style="--cl:${m.draft.cloth};--p:.18">
       ${LQ}
       <div class="sp-row"><h3 class="sp-title" id="np-title">${esc(m.draft.title || 'Titre du livre')}</h3></div>
-      <div class="sp-row2"><p class="sp-next"><em>${plural(n, 'étape', 'étapes')}</em></p></div>
+      <p class="sp-next sp-none">${plural(n, 'étape', 'étapes')}</p>
     </div>
     <label class="field"><span class="field-k">Titre</span><input class="in big new-title" type="text" data-draft="title" value="${esc(m.draft.title)}" placeholder="Le Chant d’Achille" data-autofocus data-enter="create-project" autocomplete="off" enterkeyhint="go"></label>
     <div class="field"><span class="field-k">Couleur</span>${clothPicker('draft-cloth', m.draft.cloth)}</div>
@@ -496,7 +498,6 @@ function appearanceHTML() {
     <div class="set-group"><h4>Thème</h4>${seg('theme', [['clair', 'Jour'], ['sombre', 'Nuit'], ['auto', 'Comme l’appareil']])}</div>
     <div class="set-group"><h4>Cartes des livres</h4>${seg('density', [['aeree', 'Détaillées, avec la prochaine étape'], ['compacte', 'Compactes']])}</div>
     <div class="set-group">
-      ${sw('numbers', pr.numbers, 'Afficher les chiffres', 'Par exemple « 4/10 » à côté des bulles d’étapes')}
       ${sw('tables', pr.tables, 'Vue d’ensemble en bas de page', 'Le grand tableau façon carnet')}
     </div>
     <div class="set-group"><h4>Sur cet appareil</h4>
@@ -596,12 +597,12 @@ const logoDrop = () => `<div class="logo-drop" style="--cl:${state ? state.sides
 function welcomeHTML(m) {
   const msg = m.msg ? `<p class="msg ${m.err ? 'err' : 'ok'}">${esc(m.msg)}</p>` : '';
   if (m.link) {
-    return `<div class="sheet-scroll welcome">${logoDrop()}<p class="wordmark big">atelier</p>
+    return `<div class="sheet-scroll welcome">${logoDrop()}<h1 class="logo big" role="img" aria-label="Parinès"></h1>
       <h2>Connecter cet appareil ?</h2>
       <p class="lead">Il retrouvera tous les livres de l’atelier, et tout ce que tu feras ici sera enregistré en ligne.</p>${msg}
       <div class="btn-col"><button class="btn primary big" data-action="welcome-connect">Connecter</button><button class="btn quiet" data-action="close-sheet">Pas maintenant</button></div></div>`;
   }
-  return `<div class="sheet-scroll welcome">${logoDrop()}<p class="wordmark big">atelier</p>
+  return `<div class="sheet-scroll welcome">${logoDrop()}<h1 class="logo big" role="img" aria-label="Parinès"></h1>
     <p class="lead">Les binds perso d’un côté, les commandes de l’autre, et au milieu ce que tu fais aujourd’hui.</p>
     <div class="welcome-card"><b>Tu as reçu un lien de connexion ?</b>
       <label class="add-row boxed">${I('link', 17)}<input id="connect-input" placeholder="Colle-le ici" data-enter="connect" autocomplete="off" spellcheck="false"></label>
