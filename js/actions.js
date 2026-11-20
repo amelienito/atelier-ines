@@ -69,6 +69,7 @@ function applySnapshot(snap) {
 
 /* ---------- Fenêtres ---------- */
 function blurActive() { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); }
+function isTyping() { const a = document.activeElement; return !!a && a !== document.body && a.matches('input, textarea, select, [contenteditable]'); }
 function openSheet(m) {
   blurActive();
   $('#sheet-root').classList.remove('closing');
@@ -101,6 +102,23 @@ function closePop() {
 }
 function ask(title, text, ok, opts = {}) {
   return new Promise((resolve) => openPop({ type: 'ask', title, text, ok, resolve, ...opts }));
+}
+/* À la connexion : que faire des livres déjà sur cet appareil ?
+   Fermer la question sans choisir ne supprime jamais rien. */
+async function connectChoice(remote) {
+  const local = state.projects; const demo = looksLikeDemo(state);
+  if (remote && remote.projects.length) {
+    if (!local.length || state.seed) return 'keep';
+    const yes = await ask(demo ? 'Cet appareil contient les exemples' : `Cet appareil a déjà ${plural(local.length, 'livre', 'livres')}`,
+      `En ligne, il y a ${plural(remote.projects.length, 'livre', 'livres')}. Prendre seulement ceux en ligne ? Sinon, les deux sont réunis.`,
+      'Prendre ceux en ligne', { no: 'Tout réunir' });
+    return yes ? 'remote' : 'keep';
+  }
+  if (demo && local.length) {
+    const yes = await ask('Cet appareil contient les exemples', 'Avant de tout mettre en ligne, repartir d’un atelier vide ?', 'Repartir de zéro', { no: 'Garder les exemples' });
+    return yes ? 'remote' : 'keep';
+  }
+  return 'keep';
 }
 function openSettings(tab, side) {
   ui.setTab = tab || 'apparence';
@@ -393,7 +411,7 @@ const actions = {
     const cfg = Link.parse(inp ? inp.value : '');
     if (!cfg) { m.msg = 'Ça ne ressemble pas à un lien de connexion. Copie bien tout le lien reçu.'; m.err = true; renderSheet(); return; }
     m.msg = 'Connexion…'; m.err = false; renderSheet();
-    const err = await Sync.connect(cfg);
+    const err = await Sync.connect(cfg, connectChoice);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
     Haptic.tap(true);
     if (m.type === 'welcome') closeSheet(); else { m.msg = 'Connecté. Tout est maintenant enregistré en ligne.'; m.err = false; renderSheet(); }
@@ -401,7 +419,7 @@ const actions = {
   },
   async 'welcome-connect'() {
     const m = ui.sheet; m.msg = 'Connexion…'; m.err = false; renderSheet();
-    const err = await Sync.connect(m.cfg);
+    const err = await Sync.connect(m.cfg, connectChoice);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
     Haptic.tap(true); closeSheet();
     toast('Cet appareil est connecté');
@@ -410,6 +428,11 @@ const actions = {
   'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. Pour les effacer : Réglages, Mémoire et synchro, Repartir de zéro.'); },
   async 'copy-link'() {
     try { await navigator.clipboard.writeText(Link.make()); toast('Lien copié : ouvre-le sur l’autre appareil'); Haptic.tap(); } catch (e) { toast('Copie impossible ici : utilise « Envoyer… »'); }
+  },
+  async 'paste-link'() {
+    const inp = $('#connect-input'); if (!inp) return;
+    try { inp.value = (await navigator.clipboard.readText()).trim(); } catch (e) { inp.focus(); toast('Appuie longuement dans le champ, puis « Coller »'); return; }
+    if (inp.value) actions.connect();
   },
   async 'share-link'() { try { await navigator.share({ title: 'Atelier', text: 'Ouvre ce lien pour connecter cet appareil à l’atelier', url: Link.make() }); } catch (e) { /* annulé */ } },
   async disconnect() {

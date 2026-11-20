@@ -251,7 +251,9 @@ const Sync = {
     if (e instanceof TypeError || !navigator.onLine) this.setStatus('offline');
     else this.setStatus('error', e.message || 'Erreur de synchro');
   },
-  async connect(cfg) {
+  /* decide(remote) peut demander quoi faire des livres déjà sur l'appareil :
+     renvoie 'remote' (prendre ceux en ligne, ou repartir de zéro) ou 'keep' */
+  async connect(cfg, decide) {
     let res;
     try { res = await this.req('GET', '', null, cfg); } catch (e) { return 'Pas de connexion internet pour l’instant.'; }
     if (res.status === 401) return 'Ce jeton est refusé : il est faux ou a expiré.';
@@ -260,6 +262,14 @@ const Sync = {
     const j = await res.json().catch(() => ({}));
     if (j.permissions && j.permissions.push === false) return 'Ce jeton peut lire mais pas écrire (il faut « Contents : Read and write »).';
     this.cfg = { owner: cfg.owner, repo: cfg.repo, token: cfg.token, branch: j.default_branch || 'main', path: 'data.json', sha: null };
+    if (decide) {
+      let r = null;
+      try { r = await this.pull(); } catch (e) { r = null; }
+      if (r) {
+        const remote = r.exists ? normalize(r.data) : null;
+        if ((await decide(remote)) === 'remote') replaceState(remote || freshState());
+      }
+    }
     this.saveCfg();
     Covers.failed.clear();
     await this.refresh(true);

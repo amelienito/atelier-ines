@@ -65,4 +65,42 @@
     if (rollDay()) { saveLocal(); Sync.schedule(); renderAll(); }
     else if (!document.activeElement || document.activeElement === document.body) renderTop();
   }, 60 * 1000);
+
+  /* Deux appareils ouverts en même temps : on regarde toutes les 30 s
+     si l'autre a changé quelque chose (seulement si l'écran est visible
+     et que personne n'est en train d'écrire). */
+  setInterval(() => {
+    if (document.visibilityState !== 'visible' || !Sync.enabled() || Sync.dirty || isTyping()) return;
+    Sync.refresh();
+  }, 30 * 1000);
+
+  /* Nouvelle version du site : elle s'installe toute seule, au moment où
+     rien n'est ouvert (au retour sur l'appli, ou après une minute calme). */
+  const APP_V = ((document.querySelector('script[src*="main.js"]') || {}).src || '').split('v=')[1] || '';
+  let newV = null; let lastTouch = Date.now();
+  ['pointerdown', 'keydown'].forEach((t) => addEventListener(t, () => { lastTouch = Date.now(); }, true));
+  const quiet = () => !ui.sheet && !ui.pop && !isTyping() && !document.body.classList.contains('dragging');
+  const install = () => {
+    if (!newV || !quiet() || sessionStorage.getItem('atelier.upd') === newV) return;
+    sessionStorage.setItem('atelier.upd', newV);       // jamais deux fois de suite
+    blurActive(); saveLocal();
+    location.replace(location.pathname + '?v=' + encodeURIComponent(newV));
+  };
+  const checkUpdate = async () => {
+    if (!APP_V || !navigator.onLine) return;
+    try {
+      const t = await fetch('index.html?u=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.text() : ''));
+      const m = t.match(/main\.js\?v=([\w.-]+)/);
+      if (m && m[1] !== APP_V) newV = m[1];
+    } catch (e) { /* hors ligne */ }
+  };
+  checkUpdate();
+  setInterval(async () => {
+    await checkUpdate();
+    if (newV && Date.now() - lastTouch > 60 * 1000) install();
+  }, 5 * 60 * 1000);
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState !== 'visible') return;
+    await checkUpdate(); install();
+  });
 })();

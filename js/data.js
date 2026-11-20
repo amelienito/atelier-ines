@@ -131,12 +131,17 @@ function buildProject(s, side, title, o = {}) {
 }
 
 /* Exemples tirés des photos (proposés au premier lancement) */
+/* Titres des exemples (pour les reconnaître même sans marque) */
+const SEED_TITLES = ['Just Lovers', 'Green Light', 'Le Chevalier Errant', 'Eragon', 'Les Liaisons dangereuses'];
+const looksLikeDemo = (s) => s.seed || s.projects.some((p) => p.demo) || (s.projects.length > 0 && s.projects.every((p) => SEED_TITLES.includes(p.title)));
+
 function seedState() {
   const s = freshState();
   s.seed = true;
   const mk = (side, title, done, o) => {
     const p = buildProject(s, side, title, { start: '', ...o });
     p.steps.forEach((st, i) => { st.done = i < done; });
+    p.demo = true;
     s.projects.push(p);
     return p;
   };
@@ -224,6 +229,7 @@ function normProject(p, sd) {
     start: str(p.start), end: str(p.end), endAuto: !!p.endAuto,
     archived: !!p.archived, archivedAt: +p.archivedAt || null,
     created: +p.created || +p.u || 0, u: +p.u || 0,
+    ...(p.demo ? { demo: true } : {}),
   };
 }
 

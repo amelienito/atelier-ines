@@ -550,13 +550,13 @@ function memoryHTML(m) {
     ${syncStatusHTML()}
     ${on ? `<div class="set-group">
       <h4>Connecter un autre appareil</h4>
-      <p class="muted">Ouvre ce lien sur l’ordi, le téléphone ou l’iPad à connecter, c’est tout. Garde-le pour toi : il donne accès aux données.</p>
+      <p class="muted">À faire une seule fois par appareil. Envoie-toi ce lien, puis ouvre-le sur l’appareil à connecter. Si l’atelier y est installé sur l’écran d’accueil, copie le lien et colle-le dans l’atelier (Réglages, Mémoire et synchro). Garde-le pour toi : il donne accès aux données.</p>
       <div class="btn-row"><button class="btn" data-action="copy-link">${I('link', 16)}Copier le lien</button>${navigator.share ? `<button class="btn" data-action="share-link">${I('share', 16)}Envoyer le lien</button>` : ''}</div>
     </div>` : `<div class="set-group">
       <h4>Connecter cet appareil</h4>
-      <p class="muted">Colle ici le lien de connexion reçu (ou un jeton GitHub).</p>
+      <p class="muted">Pour l’instant, ce qui est fait ici reste sur cet appareil. Colle le lien de connexion pour retrouver l’atelier partout.</p>
       <label class="add-row boxed">${I('link', 17)}<input id="connect-input" placeholder="https://…#connecter=…" data-enter="connect" autocomplete="off" spellcheck="false"></label>
-      <div class="btn-row"><button class="btn primary" data-action="connect">Connecter</button></div>
+      <div class="btn-row">${navigator.clipboard && navigator.clipboard.readText ? `<button class="btn primary" data-action="paste-link">${I('copy', 16)}Coller le lien</button><button class="btn" data-action="connect">Connecter</button>` : '<button class="btn primary" data-action="connect">Connecter</button>'}</div>
     </div>`}
     ${msg}
     ${installTipHTML()}
@@ -606,7 +606,7 @@ function welcomeHTML(m) {
     <p class="lead">Les binds perso d’un côté, les commandes de l’autre, et au milieu ce que tu fais aujourd’hui.</p>
     <div class="welcome-card"><b>Tu as reçu un lien de connexion ?</b>
       <label class="add-row boxed">${I('link', 17)}<input id="connect-input" placeholder="Colle-le ici" data-enter="connect" autocomplete="off" spellcheck="false"></label>
-      <button class="btn primary" data-action="connect">Connecter</button>${msg}</div>
+      ${navigator.clipboard && navigator.clipboard.readText ? `<div class="btn-row"><button class="btn primary" data-action="paste-link">${I('copy', 16)}Coller le lien</button><button class="btn" data-action="connect">Connecter</button></div>` : '<button class="btn primary" data-action="connect">Connecter</button>'}${msg}</div>
     <div class="btn-col"><button class="btn" data-action="start-blank">Commencer avec un atelier vide</button><button class="btn quiet" data-action="start-demo">Découvrir avec des exemples</button></div></div>`;
 }
 
