@@ -62,12 +62,17 @@ function fillOf(p) {
   const from = st && pr.total ? Math.min(1, Math.max(0, (pr.done + (st.done ? -1 : 1)) / pr.total)) : null;
   return { lv, from };
 }
+const isDark = () => document.documentElement.dataset.theme === 'dark';
+function tints(c) {
+  const on = isDark() ? '#1f1a3a' : '#ffffff'; const k = isDark() ? [0.16, 0.34, 0.52] : [0.17, 0.52, 0.78];
+  return `--cl:${c};--base:${mixHex(c, on, k[0])};--la:${mixHex(c, on, k[1])};--lb:${mixHex(c, on, k[2])}`;
+}
 function bookVars(p) {
   const img = p.cover && p.cover.t === 'img';
   const u = img ? Covers.url(p.cover.key) : '';
   const f = fillOf(p);
   return {
-    style: `--cl:${p.cloth};--p:${f.lv.toFixed(3)}${f.from !== null ? `;--p0:${f.from.toFixed(3)}` : ''}${u ? `;--img:url('${u}')` : ''}`,
+    style: `${tints(colOf(p))};--p:${f.lv.toFixed(3)}${f.from !== null ? `;--p0:${f.from.toFixed(3)}` : ''}${u ? `;--img:url('${u}')` : ''}`,
     ink: 'ink',
     cls: (img ? (u ? ' has-img' : ' img-wait') : '') + (f.from !== null ? ' rise' : ''),
     cover: img ? ` data-cover="${esc(p.cover.key)}"` : '',
@@ -76,7 +81,7 @@ function bookVars(p) {
 /* L'eau colorée (deux vagues qui bougent lentement) */
 const LQ = '<span class="lq" aria-hidden="true"></span>';
 /* Pastille de couleur d'un livre */
-const chip = (p) => `<i class="chip" style="--cl:${p.cloth}" aria-hidden="true"></i>`;
+const chip = (p) => `<i class="chip" style="--cl:${colOf(p)}" aria-hidden="true"></i>`;
 
 /* Une bulle par étape : pleine quand elle est faite */
 function toolingHTML(p, nx = nextStep(p), cls = '') {
@@ -91,8 +96,14 @@ function applyPrefs() {
   root.dataset.theme = dark ? 'dark' : 'light';
   document.body.dataset.density = pr.density;
   document.body.classList.toggle('calm', calm());
-  root.style.setProperty('--perso', state.sides.perso.color);
-  root.style.setProperty('--pro', state.sides.pro.color);
+  const sky = dark ? '#15122a' : '#f1edf6';
+  for (const sd of SIDES) {
+    const c = state.sides[sd].color;
+    root.style.setProperty('--' + sd, c);
+    root.style.setProperty('--' + sd + '-cloud', mixHex(c, sky, dark ? 0.42 : 0.5));
+    root.style.setProperty('--' + sd + '-soft', mixHex(c, dark ? '#1f1a3a' : '#ffffff', dark ? 0.28 : 0.2));
+  }
+  root.style.setProperty('--zoom', LOCAL.zoom || 1);
   const meta = $('meta[name="theme-color"]'); if (meta) meta.content = dark ? '#16132b' : '#f1edf6';
 }
 
@@ -107,12 +118,26 @@ function renderTop() {
     <h1 class="logo" role="img" aria-label="Parinès, atelier"></h1>
     <p class="today-date">${esc(greeting())}<span>${esc(longToday())}</span></p>
     <div class="top-actions">
+      <div class="zoom" role="group" aria-label="Taille de l’affichage"><button data-action="zoom" data-d="-1" aria-label="Réduire l’affichage">A−</button><button data-action="zoom" data-d="1" aria-label="Agrandir l’affichage">A+</button></div>
       <button class="top-btn search" data-action="palette"><span>Chercher</span><kbd>${isMac ? '⌘' : 'Ctrl '}K</kbd></button>
       <button class="top-btn icon-only" data-action="palette" aria-label="Chercher">${I('search', 20)}</button>
       ${syncBtn()}
       <button class="top-btn hide-phone" data-action="open-archives">Terminés${na ? `<span class="n">${na}</span>` : ''}</button>
       <button class="top-btn" data-action="open-settings" aria-label="Réglages"><span class="hide-phone">Réglages</span><span class="show-phone">${I('sliders', 20)}</span></button>
-    </div>`;
+    </div>
+    ${state.prefs.links !== false ? favsHTML() : ''}`;
+}
+/* Barre de favoris : ses outils de tous les jours, à portée de pouce */
+const FAVS = [
+  ['Drive', 'https://drive.google.com/', 'drive.google.com'],
+  ['Gmail', 'https://mail.google.com/', 'mail.google.com'],
+  ['Shopify', 'https://www.shopify.com/login?ui_locales=fr', 'shopify.com'],
+  ['Enbooken', 'https://enbooken.com/', 'enbooken.com'],
+  ['Pinterest', 'https://www.pinterest.fr/', 'pinterest.fr'],
+  ['Cosmos', 'https://www.cosmos.so/', 'cosmos.so'],
+];
+function favsHTML() {
+  return `<nav class="favs" aria-label="Favoris">${FAVS.map(([n, u, d]) => `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav><span class="fav-ic" data-l="${n[0]}"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64" alt="" loading="lazy" onerror="this.remove()"></span>${n}</a>`).join('')}</nav>`;
 }
 function greeting() {
   const h = new Date().getHours(); const who = (state.user || '').trim();
@@ -197,16 +222,29 @@ function todayHTML() {
   const es = todayEntries(); const done = es.filter((e) => e.done).length;
   const sug = suggestions(es.length ? 3 : 5);
   const lv = es.length ? done / es.length : 0;
+  const c1 = state.sides.perso.color; const c2 = state.sides.pro.color; const on = isDark() ? '#1f1a3a' : '#ffffff';
+  /* Une tâche cochée disparaît (après une courte animation) */
+  const shown = (e) => !e.done || flashed(e.it.id) || ui.showDone;
+  const groups = [
+    ['perso', state.sides.perso.name, es.filter((e) => !e.free && e.p.side === 'perso')],
+    ['pro', state.sides.pro.name, es.filter((e) => !e.free && e.p.side === 'pro')],
+    ['free', 'À côté', es.filter((e) => e.free)],
+  ].filter(([, , l]) => l.some(shown));
   return `
   <aside class="today">
     <header class="td-head">
       <div><h2>Aujourd’hui</h2><p class="td-date">${esc(longToday())}</p></div>
-      ${es.length ? `<div class="td-drop${done === es.length ? ' full' : ''}" style="--p:${lv.toFixed(3)}" role="img" aria-label="${done} fait sur ${es.length}">${LQ}<span class="td-count">${done === es.length ? I('check', 22) : `<b>${done}</b><small>sur ${es.length}</small>`}</span></div>` : ''}
+      ${es.length ? `<div class="td-drop${done === es.length ? ' full' : ''}" style="--la:${mixHex(c1, on, 0.55)};--lb:${mixHex(c2, on, 0.6)};--p:${lv.toFixed(3)}" role="img" aria-label="${done} fait sur ${es.length}">${LQ}<span class="td-count">${done === es.length ? I('check', 22) : `<b>${done}</b><small>sur ${es.length}</small>`}</span></div>` : ''}
     </header>
-    ${es.length ? `<ul class="td-list" data-sortable="today">${es.map(todoHTML).join('')}</ul>` : '<p class="td-empty">Rien de prévu. Note une tâche ou pioche dans les étapes à suivre.</p>'}
+    ${groups.length ? groups.map(([k, name, l]) => `
+      <section class="td-group" data-g="${k}"${k !== 'free' ? ` style="--cl:${state.sides[k].color}"` : ''}>
+        <h3 class="td-g">${k !== 'free' ? `<i class="space-chip" style="--cl:${state.sides[k].color}"></i>` : ''}${esc(name)}<span>${l.filter((e) => !e.done).length || ''}</span></h3>
+        <ul class="td-list" data-sortable="today">${l.filter(shown).map(todoHTML).join('')}</ul>
+      </section>`).join('') : `<p class="td-empty">${es.length ? 'Tout ce qui était prévu est fait.' : 'Rien de prévu. Note une tâche ou pioche dans les étapes à suivre.'}</p>`}
+    ${done ? `<button class="td-done-toggle" data-action="toggle-done">${I('check', 15)}${ui.showDone ? 'Masquer ce qui est fait' : `${plural(done, 'tâche faite', 'tâches faites')} aujourd’hui`}</button>` : ''}
     <label class="td-add">${I('plus', 18)}<input id="free-input" type="text" placeholder="Noter une tâche" data-enter="add-free" autocomplete="off" enterkeyhint="done"></label>
     ${sug.length ? `<div class="td-sugg"><h4>Pour la suite</h4><div class="sugg-list">${sug.map(({ p, st }) => `
-      <button class="sugg" data-action="today-add" data-p="${p.id}" data-s="${st.id}" style="--cl:${p.cloth}">
+      <button class="sugg" data-action="today-add" data-p="${p.id}" data-s="${st.id}" style="--cl:${colOf(p)}">
         <span class="sugg-plus">${I('plus', 14)}</span><span class="sugg-txt"><b>${esc(st.name)}</b><small>${esc(p.title)}</small></span>
       </button>`).join('')}</div></div>` : ''}
     <button class="td-pick" data-action="open-picker">${I('stack', 17)}Choisir parmi toutes les étapes</button>
@@ -220,10 +258,10 @@ function todoHTML(e) {
   const box = `<button class="box" data-action="today-toggle" data-id="${e.it.id}" aria-label="${e.done ? 'Décocher' : 'Cocher'}">${I('check', 15)}</button>`;
   if (e.free) {
     return `<li class="td-item free ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}">${box}
-      <div class="td-txt"><input class="td-free" value="${esc(e.it.text)}" data-free="${e.it.id}" aria-label="Tâche" enterkeyhint="done"></div>${tag}${x}</li>`;
+      <div class="td-txt"><input class="td-free" value="${esc(e.it.text)}" data-free="${e.it.id}" aria-label="Tâche" enterkeyhint="done"></div>${tag}<span class="td-grip" aria-hidden="true">${I('grip', 16)}</span>${x}</li>`;
   }
-  return `<li class="td-item ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}" style="--cl:${e.p.cloth}">${box}
-    <div class="td-txt"><b>${esc(e.st.name)}</b><button class="td-book" data-action="open-project" data-id="${e.p.id}">${chip(e.p)}${esc(e.p.title)}</button></div>${tag}${x}</li>`;
+  return `<li class="td-item ${e.done ? 'done' : ''}${fl}" data-id="${e.it.id}" style="--cl:${colOf(e.p)}">${box}
+    <div class="td-txt"><b>${esc(e.st.name)}</b><button class="td-book" data-action="open-project" data-id="${e.p.id}">${esc(e.p.title)}</button></div>${tag}<span class="td-grip" aria-hidden="true">${I('grip', 16)}</span>${x}</li>`;
 }
 /* Résumé de tous les livres (téléphone, sous « Aujourd'hui ») */
 function miniOverviewHTML() {
@@ -237,37 +275,30 @@ function miniOverviewHTML() {
 }
 
 /* ---------- Vue d'ensemble : le grand cahier ---------- */
+function bar(pct, cls = '') { return `<span class="bar ${cls}" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${pct}%"></i></span>`; }
 function ledgerHTML() {
-  const na = archivedProjects().length;
-  return `<header class="lg-head"><h2>Vue d’ensemble</h2><p>Une ligne par livre, une colonne par étape. Touche une pastille pour la cocher.</p>
-      ${na ? `<button class="ghost-btn text" data-action="open-archives">${I('books', 16)}${plural(na, 'livre terminé', 'livres terminés')}</button>` : ''}</header>
-    <div class="lg-tables">${SIDES.map(tableHTML).join('')}</div>`;
+  const t = stats(); const na = archivedProjects().length;
+  const sub = [plural(t.books, 'livre en cours', 'livres en cours'), `${t.done} étapes cochées sur ${t.total}`].join(', ');
+  const month = t.finished || t.stepsMonth ? `<p class="ov-month">Ce mois-ci : ${[t.finished ? plural(t.finished, 'livre terminé', 'livres terminés') : '', t.stepsMonth ? plural(t.stepsMonth, 'étape cochée', 'étapes cochées') : ''].filter(Boolean).join(' et ')}.</p>` : '';
+  return `<header class="lg-head"><h2>Vue d’ensemble</h2>${na ? `<button class="ghost-btn text" data-action="open-archives">${I('books', 16)}${plural(na, 'livre terminé', 'livres terminés')}</button>` : ''}</header>
+    <div class="ov-total">
+      <div class="ov-big"><b>${t.pct}<small>%</small></b><span>de l’atelier accompli</span></div>
+      <div class="ov-main">${bar(t.pct, 'big')}<p>${sub}.</p>${month}</div>
+    </div>
+    <div class="ov-sides">${SIDES.map(sideOverviewHTML).join('')}</div>`;
 }
-function tableHTML(side) {
-  const sd = state.sides[side]; const list = activeProjects(side); const cols = sd.steps;
-  const tplIds = new Set(cols.map((c) => c.id)); const collapsed = !!(LOCAL.collapsed || {})[side];
-  const head = `<tr><th class="lg-name"></th><th class="lg-v"><span>Type</span></th>${cols.map((c) => `<th class="lg-v"><span>${esc(c.name)}</span></th>`).join('')}<th class="lg-v"><span>Autres</span></th><th class="lg-v"><span>Début</span></th><th class="lg-v"><span>Fin</span></th></tr>`;
-  const rows = list.map((p) => {
-    const others = p.steps.filter((s) => !s.tpl || !tplIds.has(s.tpl)); const od = others.filter((s) => s.done).length; const ty = typeOf(p);
-    return `<tr class="ph-${phase(p)}" style="--cl:${p.cloth}">
-      <th class="lg-name"><button data-action="open-project" data-id="${p.id}">${chip(p)}<span>${esc(p.title)}</span></button></th>
-      <td>${ty ? `<span class="lg-type" style="--t:${ty.color}" title="${esc(ty.name)}"></span>` : ''}</td>
-      ${cols.map((c) => {
-        const st = p.steps.find((s) => s.tpl === c.id);
-        if (!st) return '<td><span class="cell na" title="Pas concerné"></span></td>';
-        return `<td><button class="cell ${st.done ? 'on' : ''}${flashed(st.id) ? ' just' : ''}" data-action="cell-toggle" data-p="${p.id}" data-s="${st.id}" title="${esc(c.name)}" aria-pressed="${st.done}">${I('check', 13)}</button></td>`;
-      }).join('')}
-      <td>${others.length ? `<button class="cell other ${od === others.length ? 'on' : ''}" data-action="open-project" data-id="${p.id}" title="${esc(others.map((s) => s.name).join(', '))}">${od}/${others.length}</button>` : ''}</td>
-      <td class="lg-date">${shortDate(p.start) || '<i class="lg-nil">–</i>'}</td><td class="lg-date">${shortDate(p.end) || '<i class="lg-nil">–</i>'}</td>
-    </tr>`;
-  }).join('');
-  return `<div class="lg ${collapsed ? 'collapsed' : ''}" data-side="${side}">
-    <header class="lg-sub">
-      <button class="lg-toggle" data-action="toggle-table" data-side="${side}" aria-expanded="${!collapsed}">${I('chevron', 16)}<i class="space-chip" style="--cl:${sd.color}"></i><b>${esc(sd.name)}</b></button>
-      <button class="ghost-btn text" data-action="open-settings" data-tab="espaces" data-side="${side}">Modifier les colonnes</button>
-    </header>
-    ${collapsed ? '' : list.length ? `<div class="lg-scroll"><table>${head}${rows}</table></div>` : '<p class="lg-empty">Aucun livre en cours.</p>'}
-  </div>`;
+function sideOverviewHTML(side) {
+  const sd = state.sides[side]; const t = stats(side); const list = activeProjects(side);
+  return `<section class="ov-side" data-side="${side}" style="--cl:${sd.color}">
+    <header class="ov-head"><i class="space-chip" style="--cl:${sd.color}"></i><h3>${esc(sd.name)}</h3><b>${t.pct} %</b></header>
+    ${bar(t.pct)}
+    ${list.length ? `<ul class="ov-list">${list.map((p) => {
+      const pc = pctOf(p); const nx = nextStep(p); const ph = phase(p);
+      return `<li><button class="ov-book" data-action="open-project" data-id="${p.id}">
+        <span class="ov-t"><b>${esc(p.title)}</b><small>${ph === 'livrables' ? 'Plus que les livrables' : nx ? 'Ensuite : ' + esc(nx.name) : 'Aucune étape'}</small></span>
+        <span class="ov-p">${pc} %</span>${bar(pc, 'thin')}</button></li>`;
+    }).join('')}</ul>` : '<p class="lg-empty">Aucun livre en cours.</p>'}
+  </section>`;
 }
 
 /* ---------- Onglets (téléphone) ---------- */
@@ -296,7 +327,7 @@ function renderSheet() {
   const ex = $('.sheet', root);
   if (ex && root.dataset.key === key) {
     const sc = $('.sheet-scroll', ex); const top = sc ? sc.scrollTop : 0;
-    ex.innerHTML = html;
+    ex.innerHTML = html; ex.classList.add('settled');
     const sc2 = $('.sheet-scroll', ex); if (sc2) sc2.scrollTop = top;
   } else {
     root.innerHTML = `<div class="scrim${cls === 'book' ? ' dim' : ''}" data-action="close-sheet"></div><section class="sheet ${cls} sheet-${m.type}" role="dialog" aria-modal="true">${html}</section>`;
@@ -361,7 +392,7 @@ function pageHTML(m) {
       <header class="pg-hero">
         ${LQ}
         <button class="book-close" data-action="close-sheet" aria-label="Fermer">${I('x', 20)}</button>
-        <p class="pg-kicker"><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}${ty ? `<span class="pg-type" style="--t:${ty.color}">${esc(ty.name)}</span>` : ''}</p>
+        <p class="pg-kicker"><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}${ty ? `<span class="pg-type" style="--t:${sd.color}">${esc(ty.name)}</span>` : ''}</p>
         <textarea class="pg-title" data-pfield="title" rows="1" aria-label="Titre du livre" spellcheck="false">${esc(p.title)}</textarea>
         <p class="pg-state">${state1}</p>
       </header>
@@ -369,7 +400,7 @@ function pageHTML(m) {
         <section class="leaf leaf-a">
           ${p.archived ? `<div class="banner"><span>Terminé${p.archivedAt ? ' le ' + dateFr(p.archivedAt) : ''}.</span><button class="btn small" data-action="unarchive" data-id="${p.id}">Le remettre en cours</button></div>` : ''}
           <div class="props">
-            <div class="prop"><span class="prop-k">Type</span><div class="prop-v chips">${sd.types.map((t) => `<button class="type-pick ${p.kind === t.name ? 'on' : ''}" style="--t:${t.color}" data-action="set-kind" data-id="${p.id}" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('') || '<span class="muted">Aucun type, à créer dans Réglages</span>'}</div></div>
+            <div class="prop"><span class="prop-k">Type</span><div class="prop-v chips">${sd.types.map((t) => `<button class="type-pick ${p.kind === t.name ? 'on' : ''}" style="--t:${sd.color}" data-action="set-kind" data-id="${p.id}" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('') || '<span class="muted">Aucun type, à créer dans Réglages</span>'}</div></div>
             ${p.side === 'pro' || p.client || p.contact ? `
             <label class="prop"><span class="prop-k">Cliente</span><input class="prop-in" data-pfield="client" value="${esc(p.client)}" placeholder="Son nom" enterkeyhint="done"></label>
             <label class="prop"><span class="prop-k">Contact</span><input class="prop-in" data-pfield="contact" value="${esc(p.contact)}" placeholder="Insta, mail, téléphone" enterkeyhint="done"></label>` : ''}
@@ -393,8 +424,7 @@ function pageHTML(m) {
         </section>
 
         <section class="leaf leaf-c">
-          <div class="sec-head"><h3>Couleur</h3></div>
-          ${clothPicker('set-cloth', p.cloth, ` data-id="${p.id}"`)}
+          <div class="sec-head"><h3>Photo</h3></div>
           <div class="photo-row">
             <label class="btn">${I('image', 17)}${hasImg ? 'Changer la photo' : 'Ajouter une photo'}<input type="file" accept="image/*" id="cover-file" hidden></label>
             ${hasImg ? `<button class="btn quiet" data-action="remove-photo" data-id="${p.id}">Retirer la photo</button>` : ''}
@@ -424,14 +454,13 @@ function newHTML(m) {
   return `
   ${sheetHead('Nouveau livre', sd.name)}
   <div class="sheet-scroll">
-    <div class="spine preview" style="--cl:${m.draft.cloth};--p:.18">
+    <div class="spine preview" style="${tints(sd.color)};--p:.18">
       ${LQ}
       <div class="sp-row"><h3 class="sp-title" id="np-title">${esc(m.draft.title || 'Titre du livre')}</h3></div>
       <p class="sp-next sp-none">${plural(n, 'étape', 'étapes')}</p>
     </div>
     <label class="field"><span class="field-k">Titre</span><input class="in big new-title" type="text" data-draft="title" value="${esc(m.draft.title)}" placeholder="Le Chant d’Achille" data-autofocus data-enter="create-project" autocomplete="off" enterkeyhint="go"></label>
-    <div class="field"><span class="field-k">Couleur</span>${clothPicker('draft-cloth', m.draft.cloth)}</div>
-    ${sd.types.length ? `<div class="field"><span class="field-k">Type</span><div class="chips">${sd.types.map((t) => `<button class="type-pick ${m.draft.kind === t.name ? 'on' : ''}" style="--t:${t.color}" data-action="draft-kind" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('')}</div></div>` : ''}
+    ${sd.types.length ? `<div class="field"><span class="field-k">Type</span><div class="chips">${sd.types.map((t) => `<button class="type-pick ${m.draft.kind === t.name ? 'on' : ''}" style="--t:${sd.color}" data-action="draft-kind" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('')}</div></div>` : ''}
     ${m.side === 'pro' ? `<div class="grid2">
       <label class="field"><span class="field-k">Cliente</span><input class="in" data-draft="client" value="${esc(m.draft.client)}" placeholder="Son nom" enterkeyhint="next"></label>
       <label class="field"><span class="field-k">Contact</span><input class="in" data-draft="contact" value="${esc(m.draft.contact)}" placeholder="Insta, mail, téléphone" enterkeyhint="done"></label>
@@ -456,7 +485,7 @@ function pickerHTML() {
   const block = (side) => {
     const sd = state.sides[side]; const list = activeProjects(side).filter((p) => nextStep(p));
     return `<div class="pick-side"><h3><i class="space-chip" style="--cl:${sd.color}"></i>${esc(sd.name)}</h3>${list.length ? list.map((p) => `
-      <div class="pick-book" style="--cl:${p.cloth}"><div class="pick-title">${chip(p)}${esc(p.title)}</div><div class="chips">${p.steps.filter((s) => !s.done).map((s, i) => {
+      <div class="pick-book" style="--cl:${colOf(p)}"><div class="pick-title">${chip(p)}${esc(p.title)}</div><div class="chips">${p.steps.filter((s) => !s.done).map((s, i) => {
         const on = inToday(p.id, s.id);
         return `<button class="pick-chip ${on ? 'on' : ''} ${i === 0 ? 'first' : ''}" data-action="${on ? 'today-remove-step' : 'today-add'}" data-p="${p.id}" data-s="${s.id}">${on ? I('check', 13) : ''}${esc(s.name)}</button>`;
       }).join('')}</div></div>`).join('') : '<p class="muted">Rien en cours ici.</p>'}</div>`;
@@ -498,9 +527,11 @@ function appearanceHTML() {
     <div class="set-group"><h4>Thème</h4>${seg('theme', [['clair', 'Jour'], ['sombre', 'Nuit'], ['auto', 'Comme l’appareil']])}</div>
     <div class="set-group"><h4>Cartes des livres</h4>${seg('density', [['aeree', 'Détaillées, avec la prochaine étape'], ['compacte', 'Compactes']])}</div>
     <div class="set-group">
-      ${sw('tables', pr.tables, 'Vue d’ensemble en bas de page', 'Le grand tableau façon carnet')}
+      ${sw('tables', pr.tables, 'Vue d’ensemble en bas de page', 'L’avancement de l’atelier en pourcentages')}
+      ${sw('links', pr.links !== false, 'Barre de favoris', 'Drive, Gmail, Shopify, Enbooken, Pinterest, Cosmos')}
     </div>
     <div class="set-group"><h4>Sur cet appareil</h4>
+      <div class="switch-row"><span><b>Taille de l’affichage</b><small>${Math.round((LOCAL.zoom || 1) * 100)} %</small></span><div class="zoom" style="display:inline-flex"><button data-action="zoom" data-d="-1" aria-label="Réduire">A−</button><button data-action="zoom" data-d="1" aria-label="Agrandir">A+</button></div></div>
       ${sw('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour quand tu coches, sur iPhone et Android', true)}
       ${sw('sounds', LOCAL.sounds, 'Sons', 'Un petit tic quand tu coches', true)}
       ${sw('calm', LOCAL.calm, 'Animations réduites', 'Ni vagues, ni bulles, ni fond qui bouge', true)}
@@ -593,7 +624,7 @@ function historyListHTML(m) {
 }
 
 /* ---------- Bienvenue / lien de connexion ---------- */
-const logoDrop = () => `<div class="logo-drop" style="--cl:${state ? state.sides.perso.color : '#ff8b74'};--p:.58">${LQ}</div>`;
+const logoDrop = () => `<div class="logo-drop" style="${tints(state ? state.sides.perso.color : '#ff8b74')};--p:.58">${LQ}</div>`;
 function welcomeHTML(m) {
   const msg = m.msg ? `<p class="msg ${m.err ? 'err' : 'ok'}">${esc(m.msg)}</p>` : '';
   if (m.link) {

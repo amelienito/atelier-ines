@@ -45,7 +45,7 @@ const DEFAULT_SIDES = {
     steps: ['Typeset', 'Impression', 'Couture', 'Colle', 'Maquette', 'Découpe carton',
       'Découpe Cricut', 'Impression couverture', 'Vinyle', 'Assemblage final'],
     deliverables: ['Dossier du projet', 'Fichiers typeset + maquette rangés', 'Photos du bind'],
-    types: [['Fanfic', '#7e5fe0'], ['Bind exchange', '#e5862b']],
+    types: [['Perso', '#7e5fe0'], ['Bind exchange', '#e5862b']],
   },
   pro: {
     name: 'Activité pro', emoji: '✂️', color: '#4dc3d6',
@@ -57,7 +57,7 @@ const DEFAULT_SIDES = {
     types: [['Couverture', '#4470e0'], ['Rebind', '#9a4386']],
   },
 };
-const DEFAULT_PREFS = { theme: 'auto', bg: 'doux', density: 'aeree', progress: 'perles', numbers: false, tables: true };
+const DEFAULT_PREFS = { theme: 'auto', bg: 'doux', density: 'aeree', progress: 'perles', numbers: false, tables: true, links: true };
 const PREF_CHOICES = { theme: ['auto', 'clair', 'sombre'], bg: ['doux', 'points', 'uni'], density: ['aeree', 'compacte'], progress: ['perles', 'barre'] };
 
 /* ---------- Petits outils ---------- */
@@ -145,7 +145,7 @@ function seedState() {
     s.projects.push(p);
     return p;
   };
-  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Fanfic', cloth: '#ff9fc8' });
+  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Perso', cloth: '#ff9fc8' });
   mk('perso', 'Green Light', 0, { cloth: '#b3d66a', skip: ['Découpe Cricut'] });
   const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', cloth: '#7fa9ff', client: 'Camille' });
   mk('pro', 'Eragon', 7, { kind: 'Rebind', cloth: '#ffb07c' });
@@ -173,7 +173,7 @@ function normalize(s) {
   for (const side of SIDES) out.sides[side] = normSide(s.sides && s.sides[side], side);
   const pr = s.prefs && typeof s.prefs === 'object' ? s.prefs : {};
   for (const [k, choices] of Object.entries(PREF_CHOICES)) if (choices.includes(pr[k])) out.prefs[k] = pr[k];
-  for (const k of ['numbers', 'tables']) if (typeof pr[k] === 'boolean') out.prefs[k] = pr[k];
+  for (const k of ['numbers', 'tables', 'links']) if (typeof pr[k] === 'boolean') out.prefs[k] = pr[k];
   if (s.deleted && typeof s.deleted === 'object') for (const [k, v] of Object.entries(s.deleted)) if (+v) out.deleted[k] = +v;
   out.projects = (Array.isArray(s.projects) ? s.projects : [])
     .filter((p) => p && p.id && SIDES.includes(p.side))
@@ -197,7 +197,8 @@ function normSide(sd, side) {
     color: isHex(sd.color) ? hue(sd.color) : d.color,
     steps: list(sd.steps, d.steps),
     deliverables: list(sd.deliverables, d.deliverables),
-    types: list(sd.types, d.types, (x) => ({ color: isHex(x.color) ? x.color.toLowerCase() : '#8564e8' })),
+    types: list(sd.types, d.types, (x) => ({ color: isHex(x.color) ? x.color.toLowerCase() : '#8564e8' }))
+      .map((t) => (t.name === 'Fanfic' && d.name === 'Bibliothèque perso' ? { ...t, name: 'Perso' } : t)),
   };
 }
 
@@ -224,7 +225,7 @@ function normProject(p, sd) {
     icon: String(p.icon || '').trim() || defaultIcon(String(p.id)),
     cloth: isHex(p.cloth) ? hue(p.cloth) : (p.cover && p.cover.t === 'grad' && GRAD_TO_CLOTH[p.cover.v]) || defaultCloth(String(p.id)),
     cover: normCover(p.cover),
-    kind: str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
+    kind: p.side === 'perso' && p.kind === 'Fanfic' ? 'Perso' : str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
     steps, deliverables,
     start: str(p.start), end: str(p.end), endAuto: !!p.endAuto,
     archived: !!p.archived, archivedAt: +p.archivedAt || null,
@@ -341,4 +342,32 @@ function archiveProject(p) {
   const n = state.today.items.length;
   state.today.items = state.today.items.filter((it) => it.projectId !== p.id);
   if (state.today.items.length !== n) state.today.u = now();
+}
+
+
+/* ---------- Couleur d'un livre : celle de son espace (cohérence d'un coup d'œil) ---------- */
+const colOf = (p) => state.sides[p.side] ? state.sides[p.side].color : '#ff8b74';
+
+/* ---------- Avancement (vue d'ensemble) ----------
+   Compte toutes les étapes et tous les livrables des livres en cours. */
+function stats(side) {
+  const list = side ? activeProjects(side) : SIDES.flatMap((s) => activeProjects(s));
+  let done = 0; let total = 0;
+  for (const p of list) {
+    for (const x of p.steps) { total++; if (x.done) done++; }
+    for (const x of p.deliverables) { total++; if (x.done) done++; }
+  }
+  const t0 = new Date(); const month = new Date(t0.getFullYear(), t0.getMonth(), 1).getTime();
+  const all = side ? state.projects.filter((p) => p.side === side) : state.projects;
+  const finished = all.filter((p) => p.archived && (p.archivedAt || 0) >= month).length;
+  const stepsMonth = all.reduce((n, p) => n + p.steps.filter((x) => x.done && (x.doneAt || 0) >= month).length, 0);
+  return { done, total, pct: total ? Math.round((done / total) * 100) : 0, books: list.length, finished, stepsMonth };
+}
+const pctOf = (p) => { const t = p.steps.length + p.deliverables.length; const d = p.steps.filter((x) => x.done).length + p.deliverables.filter((x) => x.done).length; return t ? Math.round((d / t) * 100) : 0; };
+
+/* ---------- Mélange de couleurs sans color-mix (anciens Safari) ---------- */
+function mixHex(a, b, t) {
+  const h = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
+  const A = h(a); const B = h(b);
+  return '#' + A.map((v, i) => Math.round(v * t + B[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
 }

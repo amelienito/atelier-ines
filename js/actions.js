@@ -150,10 +150,10 @@ function setStepDone(pid, sid, value, el) {
     outcome = afterStepChange(p);
     if (outcome === 'archive') archiveProject(p);
   }, { pop: false });
-  if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.cloth), 12); } else Haptic.tap();
+  if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(colOf(p)), 12); } else Haptic.tap();
   if (outcome === 'livrables' && before !== 'livrables') {
     setTimeout(() => {
-      Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.cloth));
+      Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(colOf(p)));
       openPop({ type: 'celebrate', id: p.id });
     }, 260);
   } else renderPop();
@@ -162,7 +162,7 @@ function setStepDone(pid, sid, value, el) {
 }
 function celebrateDone(p) {
   setTimeout(() => {
-    Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(p.cloth));
+    Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(colOf(p)));
     toast(`« ${p.title} » est terminé`, { action: 'Annuler', onAction: () => Undo.undo() });
   }, 150);
 }
@@ -252,7 +252,7 @@ const actions = {
     Haptic.tap(); Sound.play('add');
     requestAnimationFrame(() => {
       const card = $(`.spine[data-id="${p.id}"]`);
-      if (card) { card.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); FX.burst(FX.at(card), sparkColors(p.cloth), 16); }
+      if (card) { card.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); FX.burst(FX.at(card), sparkColors(colOf(p)), 16); }
     });
     toast(`« ${p.title} » est posé sur la pile`);
   },
@@ -290,7 +290,7 @@ const actions = {
       d.done = nv; p.u = now();
       if (p.steps.length && p.steps.every((s) => s.done) && p.deliverables.every((x) => x.done)) { archiveProject(p); archived = true; }
     }, { pop: false });
-    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(p.cloth), 10); } else Haptic.tap();
+    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(colOf(p)), 10); } else Haptic.tap();
     if (archived) {
       ui.pop = null; renderPop();
       if (ui.sheet && ui.sheet.type === 'page' && ui.sheet.id === p.id) closeSheet();
@@ -429,6 +429,14 @@ const actions = {
   async 'copy-link'() {
     try { await navigator.clipboard.writeText(Link.make()); toast('Lien copié : ouvre-le sur l’autre appareil'); Haptic.tap(); } catch (e) { toast('Copie impossible ici : utilise « Envoyer… »'); }
   },
+  zoom(el) {
+    const steps = [0.9, 1, 1.1, 1.2, 1.32]; const cur = steps.indexOf(LOCAL.zoom || 1);
+    const nx = steps[Math.max(0, Math.min(steps.length - 1, (cur < 0 ? 1 : cur) + +el.dataset.d))];
+    if (nx === (LOCAL.zoom || 1)) { Haptic.tap(true); return; }
+    LOCAL.zoom = nx; saveLocalPrefs(); applyPrefs(); Haptic.tap();
+    toast(`Affichage à ${Math.round(nx * 100)} %`);
+  },
+  'toggle-done'() { ui.showDone = !ui.showDone; renderMain(); Haptic.tap(); },
   async 'paste-link'() {
     const inp = $('#connect-input'); if (!inp) return;
     try { inp.value = (await navigator.clipboard.readText()).trim(); } catch (e) { inp.focus(); toast('Appuie longuement dans le champ, puis « Coller »'); return; }
@@ -493,6 +501,11 @@ document.addEventListener('click', (e) => {
   e.preventDefault();
   fn(el, e);
 }, true);
+
+/* Favoris : un petit retour au toucher */
+document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-fav]')) Haptic.tap(); });
+/* Si quelque chose casse (navigateur ancien…), on le dit au lieu de rester muet */
+addEventListener('error', (e) => { if (e && e.message && !/Script error/.test(e.message)) toast('Petit souci : ' + e.message.slice(0, 90)); });
 
 /* Modifications en direct dans les champs (noms, notes…) */
 const EDIT_ATTRS = ['pfield', 'stepName', 'livrName', 'spaceName', 'tpl', 'type', 'free', 'setting'];

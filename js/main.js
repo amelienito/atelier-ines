@@ -60,7 +60,8 @@
   window.addEventListener('focus', wake);
   window.addEventListener('online', () => { if (Sync.dirty) Sync.flush(); else Sync.refresh(); });
   window.addEventListener('pagehide', () => { blurActive(); saveLocal(); });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyPrefs);
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', () => renderAll()); else if (mq.addListener) mq.addListener(() => renderAll());
   setInterval(() => {
     if (rollDay()) { saveLocal(); Sync.schedule(); renderAll(); }
     else if (!document.activeElement || document.activeElement === document.body) renderTop();
