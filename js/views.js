@@ -135,9 +135,10 @@ const FAVS = [
   ['Enbooken', 'https://enbooken.com/', 'enbooken.com'],
   ['Pinterest', 'https://www.pinterest.fr/', 'pinterest.fr'],
   ['Cosmos', 'https://www.cosmos.so/', 'cosmos.so'],
+  ['Mise en page', 'pour-ines.html', ''],
 ];
 function favsHTML() {
-  return `<nav class="favs" aria-label="Favoris">${FAVS.map(([n, u, d]) => `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav><span class="fav-ic" data-l="${n[0]}"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64" alt="" loading="lazy" onerror="this.remove()"></span>${n}</a>`).join('')}</nav>`;
+  return `<nav class="favs" aria-label="Favoris">${FAVS.map(([n, u, d]) => `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav><span class="fav-ic" data-l="${n[0]}">${d ? `<img src="https://www.google.com/s2/favicons?domain=${d}&sz=64" alt="" loading="lazy" onerror="this.remove()">` : ''}</span>${n}</a>`).join('')}</nav>`;
 }
 function greeting() {
   const h = new Date().getHours(); const who = (state.user || '').trim();
