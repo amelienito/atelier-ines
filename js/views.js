@@ -255,7 +255,7 @@ function todayHTML() {
   <aside class="today${all ? ' all-done' : ''}" aria-label="Aujourd’hui">
     <header class="td-head">
       <div><h2 class="td-title">Aujourd’hui</h2><p class="td-date">${esc(longToday())}</p></div>
-      ${es.length ? `<div class="td-count"><b>${done}</b><small>sur ${es.length}</small></div>` : ''}
+      ${es.length ? `<p class="td-count">${all ? 'Tout est fait' : `${done} sur ${es.length}`}</p>` : ''}
     </header>
     ${es.length ? `<div class="td-meter"><span class="cells">${es.map((e) => `<i class="c${e.done ? ' d ' + mkv(e.it.id) : ''}${flashed(e.it.id) ? ' just' : ''} ${e.free ? 's-free' : 's-' + e.p.side}"${e.free ? ' style="--c:var(--sun)"' : ''}></i>`).join('')}</span></div>` : ''}
     ${groups.length ? groups.map((g) => `
@@ -269,7 +269,7 @@ function todayHTML() {
       <button class="sugg s-${x.p.side}" data-action="today-add" data-p="${x.p.id}" data-s="${x.st.id}">
         <span class="pl">${I('plus', 14)}</span><span><b>${esc(x.st.name)}</b><small>${esc(x.p.title)}</small></span><i class="dot"></i>
       </button>`).join('')}</div>` : ''}
-    <button class="td-pick" data-action="open-picker">${I('stack', 17)}Choisir parmi toutes les étapes</button>
+    <button class="td-pick" data-action="open-picker">${I('sun', 17)}Préparer ma journée</button>
   </aside>`;
 }
 function todoHTML(e) {
@@ -302,7 +302,7 @@ function carnetHTML() {
     <div class="cn-head">
       <div class="cn-big" role="img" aria-label="${t.pct} % de l’atelier accompli"><b>${t.pct}</b><small>%</small></div>
       <div class="cn-cap">
-        <p><b>de l’atelier accompli.</b> ${t.done} cases cochées sur ${t.total}, étapes et livrables de ${plural(t.books, 'livre en cours', 'livres en cours')}.</p>
+        <p><b>de l’atelier accompli.</b> ${t.done} cases cochées sur ${t.total}, dans ${plural(t.books, 'livre en cours', 'livres en cours')} (étapes et livrables).</p>
         ${month.length ? `<p>Ce mois-ci : ${month.join(', ')}.</p>` : ''}
       </div>
       ${weekHTML()}
@@ -516,7 +516,7 @@ function pageHTML(m) {
         <footer class="pg-foot">
           <span class="muted">${p.created ? 'Commencé le ' + dateFr(p.created) : ''}</span>
           <button class="btn quiet small" data-action="duplicate" data-id="${p.id}">${I('copy', 15)}Dupliquer</button>
-          ${p.archived ? '' : `<button class="btn quiet small" data-action="archive-now" data-id="${p.id}">${I('archive', 15)}Ranger</button>`}
+          ${p.archived ? '' : `<button class="btn quiet small" data-action="archive-now" data-id="${p.id}">${I('archive', 15)}Ranger dans les terminés</button>`}
           <button class="btn quiet small danger" data-action="delete-project" data-id="${p.id}">${I('trash', 15)}Supprimer</button>
         </footer>
       </section>
@@ -556,19 +556,30 @@ function newHTML(m) {
   </div>`;
 }
 
-/* ---------- Choisir des étapes pour aujourd'hui ---------- */
+/* ---------- Préparer la journée ----------
+   Une ligne par livre : son étape suivante, à cocher pour aujourd'hui.
+   Les autres étapes restent repliées tant qu'on ne les demande pas. */
+function planRow(p, st, small) {
+  const on = inToday(p.id, st.id);
+  return `<button class="plan-row${small ? ' sub' : ''}${on ? ' on' : ''}" data-action="toggle-today" data-p="${p.id}" data-s="${st.id}" aria-pressed="${on}">
+    <span class="box${on ? ' on ' + mkv(st.id + 'p') : ''}"></span><span class="plan-txt"><b>${esc(st.name)}</b>${small ? '' : `<small>${esc(p.title)}</small>`}</span></button>`;
+}
 function pickerHTML() {
+  ui.planOpen = ui.planOpen || {};
+  const planned = state.today.items.filter((it) => !it.free).length;
   const block = (side) => {
     const sd = state.sides[side]; const list = activeProjects(side).filter((p) => nextStep(p));
-    return `<div class="pick-side s-${side}"><h3><i class="sq"></i>${esc(sd.name)}</h3>${list.length ? list.map((p) => `
-      <div class="pick-book"><div class="pick-title">${esc(p.title)}</div><div class="chips">${p.steps.filter((s) => !s.done).map((s, i) => {
-        const on = inToday(p.id, s.id);
-        return `<button class="pick-chip${on ? ' on' : ''}${i === 0 ? ' first' : ''}" data-action="${on ? 'today-remove-step' : 'today-add'}" data-p="${p.id}" data-s="${s.id}"><span>${esc(s.name)}</span></button>`;
-      }).join('')}</div></div>`).join('') : '<p class="muted small">Rien en cours ici.</p>'}</div>`;
+    if (!list.length) return `<section class="plan s-${side}"><h3><i class="sq"></i>${esc(sd.name)}</h3><p class="muted small">Rien en cours ici.</p></section>`;
+    return `<section class="plan s-${side}"><h3><i class="sq"></i>${esc(sd.name)}</h3><ul class="plan-list">${list.map((p) => {
+      const rest = p.steps.filter((x) => !x.done); const nx = rest[0]; const others = rest.slice(1); const open = !!ui.planOpen[p.id];
+      return `<li class="plan-book">${planRow(p, nx)}
+        ${others.length ? `<button class="plan-more" data-action="plan-more" data-id="${p.id}">${open ? 'Masquer les autres étapes' : `Voir les ${plural(others.length, 'autre étape', 'autres étapes')}`}</button>` : ''}
+        ${open ? `<div class="plan-sub">${others.map((x) => planRow(p, x, true)).join('')}</div>` : ''}</li>`;
+    }).join('')}</ul></section>`;
   };
-  return `${sheetHead('Choisir pour aujourd’hui', 'Touche les étapes que tu vas faire. Celle entourée est la suivante dans l’ordre.')}
+  return `${sheetHead('Préparer ma journée', 'Coche ce que tu comptes faire aujourd’hui. Pour chaque livre, c’est son étape suivante.')}
     <div class="sheet-scroll scroller">${SIDES.map(block).join('')}</div>
-    <div class="sheet-foot"><button class="btn primary" data-action="close-sheet" style="margin-left:auto">C’est bon</button></div>`;
+    <div class="sheet-foot"><span class="muted">${planned ? plural(planned, 'étape prévue', 'étapes prévues') : 'Rien de prévu pour l’instant'}</span><button class="btn primary" data-action="close-sheet">C’est prêt</button></div>`;
 }
 
 /* ---------- Livres terminés : l'étagère ---------- */
@@ -597,59 +608,88 @@ function standHTML(p) {
   </button>`;
 }
 
-/* ---------- Réglages ---------- */
+/* ---------- Réglages ----------
+   Quatre rubriques : ce qu'on voit, les listes proposées aux nouveaux
+   livres, ce qui ne concerne que cet appareil, la synchro. */
+const SET_TABS = [['affichage', 'Affichage'], ['etapes', 'Étapes des livres'], ['appareil', 'Cet appareil'], ['memoire', 'Synchro et sauvegardes']];
+const SET_ALIAS = { apparence: 'affichage', espaces: 'etapes' };
 function settingsHTML(m) {
-  const tab = ui.setTab;
-  const tabs = [['apparence', 'Apparence'], ['espaces', 'Espaces et étapes'], ['memoire', 'Mémoire et synchro']];
+  const tab = SET_ALIAS[ui.setTab] || ui.setTab || 'affichage';
+  const body = tab === 'etapes' ? stepsSetHTML() : tab === 'appareil' ? deviceSetHTML() : tab === 'memoire' ? memoryHTML(m) : displaySetHTML();
   return `${sheetHead('Réglages')}
-    <div class="set-tabs" role="tablist">${tabs.map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-action="set-tab" data-tab="${t[0]}" role="tab" aria-selected="${tab === t[0]}">${t[1]}</button>`).join('')}</div>
-    <div class="sheet-scroll scroller set-body">${tab === 'apparence' ? appearanceHTML() : tab === 'espaces' ? spacesSetHTML() : memoryHTML(m)}</div>`;
+    <div class="set-tabs" role="tablist">${SET_TABS.map((t) => `<button class="${tab === t[0] ? 'on' : ''}" data-action="set-tab" data-tab="${t[0]}" role="tab" aria-selected="${tab === t[0]}">${t[1]}</button>`).join('')}</div>
+    <div class="sheet-scroll scroller set-body">${body}</div>`;
 }
-function appearanceHTML() {
+const swRow = (key, on, label, sub, local) => `<label class="switch-row"><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span><input type="checkbox" class="switch" ${on ? 'checked' : ''} data-${local ? 'local' : 'pref'}="${key}"></label>`;
+function displaySetHTML() {
   const pr = state.prefs;
   const seg = (key, opts) => `<div class="seg">${opts.map((o) => `<button class="${pr[key] === o[0] ? 'on' : ''}" data-action="set-pref" data-k="${key}" data-v="${o[0]}">${o[1]}</button>`).join('')}</div>`;
-  const sw = (key, on, label, sub, local) => `<label class="switch-row"><span><b>${label}</b>${sub ? `<small>${sub}</small>` : ''}</span><input type="checkbox" class="switch" ${on ? 'checked' : ''} data-${local ? 'local' : 'pref'}="${key}"></label>`;
+  const demo = (side) => `<span class="cells">${[1, 1, 1, 2, 0, 0, 0].map((v, i) => `<i class="c${v === 1 ? ' d m' + (1 + i % 4) : ''}${v === 2 ? ' n' : ''}"></i>`).join('')}</span>`;
   return `
     <div class="set-group"><h4>Jour ou nuit</h4>${seg('theme', [['clair', 'Jour'], ['sombre', 'Nuit'], ['auto', 'Comme l’appareil']])}</div>
-    <div class="set-group"><h4>Sur le tableau</h4>
-      ${sw('tables', pr.tables !== false, 'Le carnet sous le tableau', 'L’avancement en pourcentage et le tableau croisé de chaque espace')}
-      ${sw('links', pr.links !== false, 'Barre de favoris', 'Drive, Gmail, Shopify, Enbooken, Pinterest, Cosmos, Pour Inès')}
+    <div class="set-group"><h4>Les deux espaces</h4>
+      <p class="muted">Leur nom, et la couleur du surligneur qui marque ce qui est fait.</p>
+      <div class="space-pair">${SIDES.map((side) => {
+        const sd = state.sides[side];
+        return `<div class="space-set s-${side}" id="set-${side}">
+          <label class="field"><span class="field-k">Nom</span><input class="in name" data-space-name="${side}" value="${esc(sd.name)}" enterkeyhint="done"></label>
+          <div class="field"><span class="field-k">Couleur</span><div class="swatches">${MARKERS.map((x) => `<button class="swatch${sd.color === x[1] ? ' on' : ''}" style="--c:${x[1]}" data-action="set-color" data-side="${side}" data-hex="${x[1]}" title="${x[0]}" aria-label="${x[0]}" aria-pressed="${sd.color === x[1]}"></button>`).join('')}</div></div>
+          <div class="space-demo">${demo(side)}<span class="bk-n">3/7</span></div>
+        </div>`;
+      }).join('')}</div>
     </div>
-    <div class="set-group"><h4>Sur cet appareil</h4>
-      <div class="switch-row"><span><b>Taille de l’affichage</b><small>${Math.round((LOCAL.zoom || 1) * 100)} %</small></span><div class="size" style="display:inline-flex"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div></div>
-      ${sw('music', LOCAL.music !== false, 'Bouton Musique', 'La musique d’Amélien, seulement quand tu la lances', true)}
-      ${sw('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour quand tu coches, sur iPhone et Android', true)}
-      ${sw('sounds', LOCAL.sounds, 'Sons', 'Un petit son quand tu coches', true)}
-      ${sw('calm', LOCAL.calm, 'Animations réduites', 'Les coups de surligneur se posent sans bouger', true)}
+    <div class="set-group"><h4>Sur le tableau</h4>
+      ${swRow('tables', pr.tables !== false, 'Le carnet sous le tableau', 'L’avancement en pourcentage et le tableau croisé de chaque espace')}
+      ${swRow('links', pr.links !== false, 'Barre de favoris', 'Drive, Gmail, Shopify, Enbooken, Pinterest, Cosmos, Pour Inès')}
     </div>`;
 }
-function spacesSetHTML() {
-  return SIDES.map((side) => {
-    const sd = state.sides[side];
-    return `<div class="space-set s-${side}" id="set-${side}">
-      <label class="field"><span class="field-k">Nom de l’espace</span><input class="in name" data-space-name="${side}" value="${esc(sd.name)}" enterkeyhint="done"></label>
-      <div class="field"><span class="field-k">Couleur du surligneur</span><div class="swatches">${MARKERS.map((x) => `<button class="swatch${sd.color === x[1] ? ' on' : ''}" style="--c:${x[1]}" data-action="set-color" data-side="${side}" data-hex="${x[1]}" title="${x[0]}" aria-label="${x[0]}" aria-pressed="${sd.color === x[1]}"></button>`).join('')}</div></div>
-      ${tplListHTML(side, 'steps', 'Étapes proposées à chaque nouveau livre', 'Nouvelle étape')}
-      ${tplListHTML(side, 'deliverables', 'Livrables de fin', 'Nouveau livrable')}
+function stepsSetHTML() {
+  const side = ui.setSide || 'perso'; const sd = state.sides[side];
+  return `
+    <p class="set-intro">Les listes proposées quand tu crées un livre. Les changer ne touche pas aux livres déjà commencés : chacun se modifie dans sa propre fiche.</p>
+    <div class="seg set-side">${SIDES.map((x) => `<button class="${side === x ? 'on' : ''}" data-action="set-side" data-side="${x}"><i class="sq s-${x}"></i>${esc(state.sides[x].name)}</button>`).join('')}</div>
+    <div class="space-set s-${side}" id="set-${side}">
+      ${tplListHTML(side, 'steps', 'Les étapes, dans l’ordre', 'Ajouter une étape')}
+      ${tplListHTML(side, 'deliverables', 'Les livrables de fin', 'Ajouter un livrable')}
       ${typesSetHTML(side)}
     </div>`;
-  }).join('') + '<p class="muted small" style="margin-top:1rem">Changer ces listes ne touche pas aux livres déjà en cours : chacun se modifie dans sa propre fiche.</p>';
+}
+function deviceSetHTML() {
+  const vol = String(LOCAL.muVol || 30); const mood = LOCAL.muMood || 'calme';
+  return `
+    <p class="set-intro">Ces réglages ne valent que pour cet appareil.</p>
+    <div class="set-group"><h4>Affichage</h4>
+      <div class="switch-row"><span><b>Taille</b><small>${Math.round((LOCAL.zoom || 1) * 100)} %</small></span><div class="size" style="display:inline-flex"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div></div>
+      ${swRow('dense', !!LOCAL.dense, 'Tout voir sur un écran', 'Le tableau resserré (le bouton Tout voir en haut fait pareil)', true)}
+    </div>
+    <div class="set-group"><h4>Musique</h4>
+      ${swRow('music', LOCAL.music !== false, 'La musique d’Amélien', 'Le petit lecteur rangé dans le coin', true)}
+      ${LOCAL.music !== false ? `
+      ${swRow('muAuto', LOCAL.muAuto !== false, 'Elle démarre toute seule', 'Tout doucement, à l’ouverture de l’atelier (sur ordi et iPad)', true)}
+      <div class="switch-row"><span><b>Volume</b></span><div class="seg">${VOLS.map((x) => `<button class="${vol === x[0] ? 'on' : ''}" data-action="mu-vol" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>
+      <div class="switch-row"><span><b>Ambiance</b></span><div class="seg">${MOODS.map((x) => `<button class="${mood === x[0] ? 'on' : ''}" data-action="mu-mood" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>` : ''}
+    </div>
+    <div class="set-group"><h4>Quand tu coches</h4>
+      ${swRow('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour, sur iPhone et Android', true)}
+      ${swRow('sounds', LOCAL.sounds, 'Sons', 'Un petit son', true)}
+      ${swRow('calm', LOCAL.calm, 'Animations réduites', 'Les coups de surligneur se posent sans bouger', true)}
+    </div>`;
 }
 function tplListHTML(side, key, title, ph) {
   return `<div class="tpl"><h4>${title}</h4>
     <ul class="rows" data-sortable="tpl-${side}-${key}">${state.sides[side][key].map((t) => `
       <li class="row" data-id="${t.id}"><span class="grip" aria-hidden="true">${I('grip', 15)}</span>
-      <input class="row-name" value="${esc(t.name)}" data-tpl="${side}|${key}|${t.id}" enterkeyhint="done">
+      <input class="row-name" value="${esc(t.name)}" data-tpl="${side}|${key}|${t.id}" aria-label="Nom" enterkeyhint="done">
       <button class="x row-x" data-action="tpl-remove" data-side="${side}" data-key="${key}" data-id="${t.id}" aria-label="Supprimer ${esc(t.name)}">${I('x', 14)}</button></li>`).join('')}</ul>
     <label class="add-row">${I('plus', 17)}<input id="tpl-${side}-${key}" placeholder="${ph}" data-enter="tpl-add" data-side="${side}" data-key="${key}" autocomplete="off" enterkeyhint="done"></label></div>`;
 }
 function typesSetHTML(side) {
-  return `<div class="tpl"><h4>Types</h4>
+  return `<div class="tpl"><h4>Les types de livre</h4>
     <ul class="rows">${state.sides[side].types.map((t) => `
       <li class="row" data-id="${t.id}" style="grid-template-columns:minmax(0,1fr) auto">
-      <input class="row-name" value="${esc(t.name)}" data-type="${side}|${t.id}" enterkeyhint="done">
+      <input class="row-name" value="${esc(t.name)}" data-type="${side}|${t.id}" aria-label="Nom" enterkeyhint="done">
       <button class="x row-x" data-action="type-remove" data-side="${side}" data-id="${t.id}" aria-label="Supprimer ${esc(t.name)}">${I('x', 14)}</button></li>`).join('')}</ul>
-    <label class="add-row">${I('plus', 17)}<input id="type-${side}" placeholder="Nouveau type, par exemple Réparation" data-enter="type-add" data-side="${side}" autocomplete="off" enterkeyhint="done"></label></div>`;
+    <label class="add-row">${I('plus', 17)}<input id="type-${side}" placeholder="Ajouter un type, par exemple Réparation" data-enter="type-add" data-side="${side}" autocomplete="off" enterkeyhint="done"></label></div>`;
 }
 function syncStatusHTML() {
   const s = Sync.status; const on = Sync.enabled();
@@ -775,9 +815,11 @@ function paletteItems(q) {
     [I('plus', 16), `Nouveau livre, ${state.sides.pro.name}`, () => openSheet({ type: 'new', side: 'pro' })],
     [I('books', 16), 'Livres terminés', () => openSheet({ type: 'archives' })],
     [I('grid', 16), 'Le carnet', () => actions['goto-carnet']()],
-    [I('sliders', 16), 'Apparence', () => openSettings('apparence')],
-    [I('stack', 16), 'Étapes et livrables par défaut', () => openSettings('espaces')],
-    [I('history', 16), 'Mémoire et synchro', () => openSettings('memoire')],
+    [I('sun', 16), 'Préparer ma journée', () => openSheet({ type: 'picker' })],
+    [I('sliders', 16), 'Affichage et couleurs', () => openSettings('affichage')],
+    [I('stack', 16), 'Étapes des livres', () => openSettings('etapes')],
+    [I('sliders', 16), 'Musique et réglages de cet appareil', () => openSettings('appareil')],
+    [I('history', 16), 'Synchro et sauvegardes', () => openSettings('memoire')],
     [I('sun', 16), 'Passer en jour ou en nuit', () => toggleTheme()],
   ];
   nav.filter((x) => !f || fold(x[1]).includes(f)).forEach((x) => out.push({ ic: x[0], label: esc(x[1]), run: x[2] }));

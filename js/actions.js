@@ -121,9 +121,9 @@ async function connectChoice(remote) {
   return 'keep';
 }
 function openSettings(tab, side) {
-  ui.setTab = tab || 'apparence';
+  ui.setTab = SET_ALIAS[tab] || tab || 'affichage';
+  if (side) ui.setSide = side;
   openSheet({ type: 'settings' });
-  if (side) setTimeout(() => { const el = $(`#set-${side}`); if (el) el.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth', block: 'start' }); }, 120);
 }
 function toggleTheme() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -234,7 +234,14 @@ const actions = {
   'open-settings'(el) { openSettings(el.dataset.tab, el.dataset.side); },
   'open-picker'() { openSheet({ type: 'picker' }); },
   'arch-filter'(el) { ui.archFilter = el.dataset.f; renderSheet(); },
-  'set-tab'(el) { ui.setTab = el.dataset.tab; const sc = $('.sheet-scroll'); renderSheet(); if (sc) $('.sheet-scroll').scrollTop = 0; },
+  'set-tab'(el) { ui.setTab = el.dataset.tab; renderSheet(); const sc = $('.sheet .set-body'); if (sc) sc.scrollTop = 0; },
+  'set-side'(el) { ui.setSide = el.dataset.side; renderSheet(); Haptic.tap(); },
+  'plan-more'(el) { ui.planOpen = ui.planOpen || {}; ui.planOpen[el.dataset.id] = !ui.planOpen[el.dataset.id]; renderSheet(); },
+  'mu-vol'(el) {
+    LOCAL.muVol = +el.dataset.v; saveLocalPrefs(); renderSheet(); Haptic.tap();
+    try { if (Music.yt && Music.ready) Music.yt.setVolume(Music.target()); } catch (e) { /* rien */ }
+  },
+  'mu-mood'(el) { Music.setMood(el.dataset.v); renderSheet(); Haptic.tap(); },
   palette() { openPop({ type: 'palette', q: '', sel: 0 }); },
   'pal-run'(el) { const it = ui.pop && ui.pop.items && ui.pop.items[+el.dataset.i]; if (!it) return; ui.pop = null; renderPop(); it.run(); },
 
@@ -581,7 +588,15 @@ document.addEventListener('change', (e) => {
   const t = e.target;
   if (EDIT_ATTRS.some((k) => t.dataset[k] !== undefined)) { clearTimeout(editTimers.get(t)); applyEdit(t); return; }
   if (t.dataset.pref !== undefined) { commit(() => { state.prefs[t.dataset.pref] = t.checked; state.prefsU = now(); }, { sheet: false }); Haptic.tap(); return; }
-  if (t.dataset.local !== undefined) { LOCAL[t.dataset.local] = t.checked; saveLocalPrefs(); applyPrefs(); if (t.checked && t.dataset.local === 'haptics') Haptic.tap(); if (t.checked && t.dataset.local === 'sounds') Sound.play('tick'); return; }
+  if (t.dataset.local !== undefined) {
+    const k = t.dataset.local;
+    LOCAL[k] = t.checked; saveLocalPrefs(); applyPrefs();
+    if (t.checked && k === 'haptics') Haptic.tap();
+    if (t.checked && k === 'sounds') Sound.play('tick');
+    if (k === 'dense') { renderTop(); renderMain(); }
+    if (k === 'music') { if (t.checked) { delete LOCAL.muHideDay; saveLocalPrefs(); if (Music.st.mode === 'off') Music.boot(); } else Music.stop(); renderTop(); renderSheet(); }
+    return;
+  }
   if (t.id === 'cover-file' && t.files[0]) {
     const m = ui.sheet; const p = P(m && m.id); if (!p) return;
     m.busy = true; renderSheet();

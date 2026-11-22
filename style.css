@@ -373,7 +373,6 @@ body.dense .book.with-photo { padding-left: 4rem; }
 body.dense .today { margin: .9rem 0; padding: 1.1rem 1.2rem 1rem; }
 body.dense .td-title { font-size: 1.5rem; }
 body.dense .td-date { margin-top: .2rem; font-size: .84rem; }
-body.dense .td-count b { font-size: 1.5rem; }
 body.dense .td-meter { display: none; }
 body.dense .td-group { margin-top: .65rem; }
 body.dense .td-item { padding: .3rem 0; }
@@ -421,9 +420,8 @@ body.dense .mxs { margin-top: 2rem; }
 .td-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .td-title { font-weight: 730; font-stretch: 116%; font-size: 1.95rem; line-height: 1; letter-spacing: -.025em; }
 .td-date { margin-top: .4rem; font-size: .9rem; color: var(--ink-2); }
-.td-count { text-align: right; flex: none; }
-.td-count b { font-weight: 760; font-stretch: 120%; font-size: 1.95rem; line-height: 1; letter-spacing: -.03em;  }
-.td-count small { display: block; font-size: .8rem; color: var(--ink-2); margin-top: .3rem; }
+.td-count { flex: none; margin-top: .45rem; font-size: .86rem; font-weight: 620; color: var(--ink-2); white-space: nowrap; }
+
 .td-meter { margin-top: 1rem; }
 .td-meter .c { width: .8rem; height: .8rem; }
 .td-group { margin-top: 1.15rem; }
@@ -606,6 +604,7 @@ body.dense .mxs { margin-top: 2rem; }
 
 /* ---------- La fiche d'un livre ---------- */
 .sheet.pagesheet { width: min(68rem, calc(100vw - 2rem)); }
+.sheet.sheet-settings { width: min(46rem, calc(100vw - 2rem)); }
 .pg { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
 .pg-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.8rem; padding: 1.7rem 1.9rem 1.6rem; background: var(--wash); }
 .pg-kicker { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; font-size: .88rem; color: var(--ink-2); font-weight: 560; padding-right: 3rem; }
@@ -730,6 +729,21 @@ body.dense .mxs { margin-top: 2rem; }
 .pick-chip.on::before { content: ''; position: absolute; left: -2px; right: -2px; top: 1px; bottom: 1px; background: var(--sun); -webkit-mask: var(--mk2) center / 100% 100% no-repeat; mask: var(--mk2) center / 100% 100% no-repeat; mix-blend-mode: var(--blend); }
 .pick-chip > * { position: relative; }
 
+/* ---------- Préparer ma journée ---------- */
+.plan + .plan { margin-top: 1.6rem; }
+.plan h3 { display: flex; align-items: center; gap: .55rem; font-weight: 700; font-stretch: 108%; font-size: 1.05rem; margin-bottom: .3rem; }
+.plan-book { padding: .35rem 0; border-top: 1px solid var(--line); }
+.plan-row { --c: var(--sun); display: flex; align-items: center; gap: .8rem; width: 100%; padding: .45rem .5rem; margin: 0 -.5rem; border-radius: 10px; text-align: left; transition: background .15s; }
+@media (hover: hover) { .plan-row:hover { background: var(--hover); } .plan-row:hover .box:not(.on) { box-shadow: inset 0 0 0 1.5px var(--ink); } }
+.plan-txt b { display: block; font-weight: 600; font-size: .97rem; line-height: 1.3; }
+.plan-txt small { display: block; font-size: .84rem; color: var(--ink-2); }
+.plan-row.sub { padding: .3rem .5rem; }
+.plan-row.sub .box { width: 1.25rem; height: 1.25rem; }
+.plan-row.sub .plan-txt b { font-weight: 520; font-size: .92rem; }
+.plan-more { margin: 0 0 .3rem 2.25rem; font-size: .82rem; font-weight: 600; color: var(--ink-2); padding: .2rem 0; }
+@media (hover: hover) { .plan-more:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; } }
+.plan-sub { margin: .1rem 0 .4rem 1.6rem; padding-left: .7rem; border-left: 1px solid var(--line-2); }
+
 /* ---------- Livres terminés ---------- */
 .seg { display: inline-flex; padding: .25rem; border-radius: 999px; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); gap: .15rem; flex-wrap: wrap; }
 .seg button { height: 2.2rem; padding: 0 1rem; border-radius: 999px; font-size: .9rem; font-weight: 580; color: var(--ink-2); }
@@ -773,6 +787,13 @@ body.dense .mxs { margin-top: 2rem; }
 .btn-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
 .btn-col { display: grid; gap: .5rem; justify-items: center; margin-top: 1.4rem; }
 .space-set { padding: 1.4rem; border-radius: 18px; background: var(--wash); }
+.space-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; }
+.space-pair .space-set + .space-set { margin-top: 0; }
+.space-demo { display: flex; align-items: center; gap: .7rem; margin-top: 1.1rem; }
+.set-intro { font-size: .92rem; color: var(--ink-2); line-height: 1.5; margin-bottom: 1.1rem; max-width: 34rem; }
+.set-side { margin-bottom: 1rem; }
+.set-side button { display: inline-flex; align-items: center; gap: .45rem; }
+.space-set .tpl:first-child { margin-top: 0; }
 .space-set + .space-set { margin-top: 1.2rem; }
 .space-set .field:first-child { margin-top: 0; }
 .space-set .in { background: var(--sheet); }
@@ -903,14 +924,37 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
 .mu.mini { width: 24.5rem; border-radius: 16px; display: flex; align-items: center; }
 .mu.mini .mu-video { width: 5.2rem; flex: none; aspect-ratio: 16 / 9; border-radius: 10px; margin: .45rem 0 .45rem .45rem; }
 @supports not (aspect-ratio: 1) { .mu.mini .mu-video { height: 2.9rem; } }
-.mu.mini .mu-body { flex: 1 1 auto; min-width: 0; padding: .4rem .5rem .4rem .7rem; display: flex; align-items: center; gap: .3rem; }
+.mu.mini .mu-body { flex: 1 1 auto; min-width: 0; padding: .4rem .5rem .4rem .7rem; }
+.mu.mini .mu-main { display: flex; align-items: center; gap: .3rem; }
 .mu.mini .mu-now { flex: 1 1 auto; min-width: 0; cursor: pointer; }
 .mu.mini .mu-t { font-size: .86rem; }
 .mu.mini .mu-a { font-size: .78rem; }
-.mu.mini .mu-note, .mu.mini .mu-mood, .mu.mini .mu-foot, .mu.mini .mu-full { display: none; }
-.mu.mini .mu-ctrl { margin-top: 0; flex: none; }
+.mu.mini .mu-note, .mu.mini .mu-mood, .mu.mini .mu-foot, .mu.mini .mu-full, .mu.mini .mu-msg { display: none; }
+.mu.mini .mu-ctrl { margin-top: 0; flex: none; gap: 0; }
 .mu.mini .mu-ctrl .play { width: 2.2rem; height: 2.2rem; }
-.mu:not(.mini) .mu-mini-only { display: none; }
+.mu.mini .mu-ctrl .icon-btn { width: 2.2rem; height: 2.2rem; }
+.mu-mini-only { display: none !important; }
+.mu.mini .mu-mini-only { display: inline-grid !important; }
+/* Rangé : un disque dans le coin, la vidéo dedans */
+.mu-face { display: none; position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 2; border-radius: inherit; }
+.mu.mini .mu-face, .mu.disc .mu-face { display: block; }
+.mu-hole { display: none; }
+.mu.disc { position: relative; width: 3.9rem; height: 3.9rem; border-radius: 50%; box-shadow: 0 0 0 3px var(--sheet), 0 16px 30px -12px rgba(16, 16, 28, .55); }
+.mu.disc .mu-body { display: none; }
+.mu.disc .mu-video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; }
+.mu.disc .mu-video iframe { left: -45%; width: 190%; }
+.mu.disc .mu-face::before { content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0; border-radius: 50%; background: conic-gradient(from 0deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .28), rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0) 50%, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 80%); }
+.mu.disc.playing .mu-face::before { animation: spin 3.2s linear infinite; }
+.mu.disc:not(.playing) .mu-face { background: rgba(16, 16, 28, .32); }
+.mu.disc .mu-hole { display: block; position: absolute; top: 50%; left: 50%; width: .95rem; height: .95rem; margin: -.475rem 0 0 -.475rem; border-radius: 50%; background: var(--paper); box-shadow: 0 0 0 2px rgba(255, 255, 255, .55), inset 0 0 0 1px rgba(28, 28, 42, .2); }
+@media (hover: hover) { .mu.disc:hover { transform: scale(1.06); } }
+.mu.disc { transition: transform .2s var(--ease); }
+/* La question avant de faire disparaître */
+.mu-ask { display: none; }
+.mu.asking .mu-main { display: none; }
+.mu.asking .mu-ask { display: block; }
+.mu-ask p { font-size: .95rem; }
+.mu-ask-btns { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .7rem; }
 
 /* =====================================================================
    ONGLETS (téléphone)
@@ -1033,7 +1077,8 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
   #toast-root { bottom: calc(5.2rem + env(safe-area-inset-bottom)); }
   #music { left: .5rem; right: .5rem; bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
   .mu, .mu.mini { width: 100%; }
-  .mu:not(.mini) { max-height: calc(100vh - 9rem); overflow-y: auto; }
+  .mu.full { max-height: calc(100vh - 9rem); overflow-y: auto; }
+  .mu.disc { width: 3.4rem; height: 3.4rem; }
 }
 @media (max-width: 759px) and (hover: none) {
   .td-grip { display: none; }
