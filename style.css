@@ -1126,7 +1126,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
   .pop { width: calc(100vw - 1.5rem); }
   .shelf { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem .9rem; }
   #toast-root { bottom: calc(5.2rem + env(safe-area-inset-bottom)); }
-  #music { left: .5rem; right: .5rem; bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+  #music, .mu-launch { display: none !important; }
   .mu, .mu.mini { width: 100%; }
   .mu.full { max-height: calc(100vh - 9rem); overflow-y: auto; }
   .mu.disc { width: 3.4rem; height: 3.4rem; }

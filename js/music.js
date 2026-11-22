@@ -108,6 +108,7 @@ const Music = {
 
   /* ---------- Commandes ---------- */
   launch() {
+    if (isPhone()) return;                                   // pas de lecteur sur le téléphone
     if (this.st.mode === 'full') { this.setMode('mini'); return; }
     if (this.st.mode === 'mini') { this.setMode('full'); return; }
     this.mount();

@@ -109,7 +109,10 @@ function applyPrefs() {
 /* « Tout voir » : le tableau de bord resserré, tout sur un écran.
    Ordi et iPad : le bouton de l'en-tête. iPhone : l'onglet « Tout ». */
 const isPhone = () => matchMedia('(max-width: 759px)').matches;
-function applyDense() { document.body.classList.toggle('dense', isPhone() ? ui.tab === 'all' : !!LOCAL.dense); }
+function applyDense() {
+  document.body.classList.toggle('dense', isPhone() ? ui.tab === 'all' : !!LOCAL.dense);
+  if (isPhone() && window.Music && Music.st.mode !== 'off') Music.stop();
+}
 
 function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); renderSheet(); renderPop(); if (window.Music) Music.paintLauncher(); }
 
@@ -173,7 +176,7 @@ function dockHTML() {
       : `<span class="fav-ic own" style="color:var(--on-ink)">${POUR_INES_IC}</span>`;
     return `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav>${ic}${esc(n)}</a>`;
   }).join('') : '';
-  const mu = LOCAL.music !== false
+  const mu = LOCAL.music !== false && !isPhone()
     ? `<button class="fav mu-launch${window.Music && Music.st.playing ? ' playing' : ''}" data-action="music" title="La musique d’Amélien, pour travailler">${'<span class="cd" aria-hidden="true"></span>'}Musique</button>` : '';
   const size = `<div class="size hide-phone" role="group" aria-label="Taille de l’affichage"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div>`;
   return `<nav class="dock" aria-label="Outils">${favs}${favs && mu ? '<span class="dock-sep"></span>' : ''}${mu}<span class="grow"></span>${size}</nav>`;
@@ -694,10 +697,10 @@ function deviceSetHTML() {
       <div class="switch-row"><span><b>Taille</b><small>${Math.round((LOCAL.zoom || 1) * 100)} %</small></span><div class="size" style="display:inline-flex"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div></div>
       ${swRow('dense', !!LOCAL.dense, 'Tout voir sur un écran', 'Le tableau resserré (le bouton Tout voir en haut fait pareil)', true)}
     </div>
-    <div class="set-group"><h4>Musique</h4>
+    ${isPhone() ? '' : `<div class="set-group"><h4>Musique</h4>
       ${swRow('music', LOCAL.music !== false, 'Bouton Musique', 'La musique d’Amélien, seulement quand tu appuies dessus', true)}
       ${LOCAL.music !== false ? `<div class="switch-row"><span><b>Ambiance</b></span><div class="seg">${MOODS.map((x) => `<button class="${mood === x[0] ? 'on' : ''}" data-action="mu-mood" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>` : ''}
-    </div>
+    </div>`}
     <div class="set-group"><h4>Quand tu coches</h4>
       ${swRow('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour, sur iPhone et Android', true)}
       ${swRow('sounds', LOCAL.sounds, 'Sons', 'Un petit son', true)}
