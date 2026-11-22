@@ -6,13 +6,17 @@ En ligne : https://amelienito.github.io/atelier-ines/
 
 ## Ce que fait le site
 
-- **Projets** avec emoji, couverture (dégradé ou photo), type, cliente/contact, dates, notes. Tout se modifie directement en cliquant dessus.
-- **Étapes** : à la création, on touche celles dont on n'a pas besoin, on ajoute des étapes « autre ». Progression en perles (ou barre). Bouton ✓ pour cocher l'étape en cours depuis la carte, ☀ pour la mettre dans « Aujourd'hui ».
-- **Aujourd'hui** : étapes de projets + tâches libres, suggestions « À suivre ». Ce qui n'est pas fait est gardé le lendemain (« d'hier »).
-- **Fin d'un livre** : quand toutes les étapes sont faites, une fenêtre de fête rappelle le dossier de livrables ; une fois coché, le livre rejoint l'étagère des **livres terminés**.
-- **Vue d'ensemble** : les tableaux façon carnet (cases cliquables), repliables.
-- **Personnalisation** : thème clair/sombre/auto, fond, cartes aérées/compactes, perles ou barre, couleurs, noms et emojis des espaces, étapes/livrables/types par défaut. Sur chaque appareil : vibrations, sons, animations réduites.
-- **Confort** : glisser-déposer (souris, ou appui long au doigt), recherche ⌘K / Ctrl+K, annuler ⌘Z / Ctrl+Z (et bouton « Annuler » après chaque action importante).
+Le tableau reprend le croquis d'Inès : la bibliothèque perso à gauche, l'activité pro à droite, la feuille du jour posée sur la couture, et dessous le carnet. La couleur ne sert qu'à une chose : montrer ce qui est fait, comme un coup de surligneur (rose pour le perso, vert pour le pro, réglables).
+
+- **Les livres** : une ligne par livre, avec une case par étape (surlignée quand elle est faite), la prochaine étape à cocher sur place, le soleil pour la prévoir aujourd'hui, la date « à rendre » pour les commandes (en rouge à trois jours), une vignette si le livre a une photo. On les range dans son ordre d'urgence en les faisant glisser (souris, ou appui long au doigt). Le bouton d'agrandissement met un espace en plein écran, avec toutes les étapes restantes à prévoir pour aujourd'hui.
+- **Aujourd'hui** : étapes des livres et tâches libres, rangées par espace. Une tâche cochée se surligne puis s'en va (« N tâches faites aujourd'hui » pour les revoir). L'ordre se change en glissant. Ce qui n'est pas fait est gardé le lendemain (« d'hier »).
+- **Le carnet** : le pourcentage de tout l'atelier (étapes et livrables), toute la liste d'un trait (un bâtonnet par case), les étapes cochées ces sept derniers jours, puis le tableau croisé de chaque espace comme dans son cahier (en-têtes verticaux, une case par étape qu'on surligne d'un clic, dates de début et de fin, pourcentage par livre).
+- **Fin d'un livre** : à la dernière étape, la fenêtre des livrables ; le livre reste en rouge tant qu'ils ne sont pas cochés, puis il part sur l'étagère des **livres terminés** (photo, date, durée).
+- **Barre d'outils** : Drive, Gmail, Shopify, Enbooken, Pinterest, Cosmos et **Pour Inès** (l'outil de mise en page, `pour-ines.html`), la **musique** et la taille de l'affichage.
+- **Musique** : la sélection de Music Discovery (`js/music.js`). Rien ne se lance tout seul ; une fois lancée, elle se range en petit dans un coin. Calme, posé ou un peu de tout. Rien n'est écrit dans les données d'Inès. Le bouton se masque dans Réglages.
+- **Sans Internet** : `sw.js` garde une copie de l'atelier et de Pour Inès. En ligne, tout vient toujours du réseau (jamais d'ancienne version).
+- **Réglages** : jour / nuit, couleur de chaque espace, étapes, livrables et types par défaut, carnet et favoris affichés ou non. Sur chaque appareil : taille, vibrations, sons, animations réduites, bouton Musique.
+- **Confort** : recherche ⌘K / Ctrl+K, annuler ⌘Z / Ctrl+Z (et bouton « Annuler » après chaque action importante).
 
 ## Mémoire
 
@@ -38,10 +42,14 @@ Après une modification, augmenter le numéro `?v=…` dans `index.html` (sinon 
 
 
 - `index.html` — la page
-- `style.css` — l'apparence (couleurs et thèmes en haut)
-- `js/data.js` — modèles par défaut (étapes, livrables, types, palettes), structure des données, fusion
+- `style.css` — l'apparence (couleurs en haut, coups de surligneur en masques SVG)
+- `fonts/` — Mona Sans (licence OFL), servie par le site
+- `js/data.js` — modèles par défaut (étapes, livrables, types, surligneurs), structure des données, fusion
 - `js/views.js` — tout l'affichage
 - `js/actions.js` — tout ce qui modifie quelque chose (+ annuler)
 - `js/sync.js` — mémoire locale, synchro GitHub, historique, couvertures, lien de connexion
-- `js/fx.js` — vibrations, sons, confettis, glisser-déposer
-- `js/main.js` — démarrage
+- `js/fx.js` — vibrations, sons, traits de surligneur, glisser-déposer
+- `js/music.js` — le lecteur Music Discovery
+- `js/main.js` — démarrage, mise à jour automatique
+- `sw.js` — copie hors ligne
+- `pour-ines.html` — l'outil de mise en page (fichier autonome)

@@ -7,7 +7,7 @@
 
 /* Réglages propres à cet appareil (non synchronisés) */
 const LOCAL = (() => {
-  const d = { haptics: true, sounds: false, calm: false, collapsed: {} };
+  const d = { haptics: true, sounds: false, calm: false, collapsed: {}, music: true };
   try { return { ...d, ...JSON.parse(localStorage.getItem(LS_LOCAL) || '{}') }; } catch (e) { return d; }
 })();
 function saveLocalPrefs() { try { localStorage.setItem(LS_LOCAL, JSON.stringify(LOCAL)); } catch (e) { /* rien */ } }
@@ -59,50 +59,51 @@ const Sound = {
   },
 };
 
-/* ---------- Bulles ----------
-   Quand on coche : quelques bulles de la couleur du livre s'échappent.
-   Quand un livre ou une journée est fini : une nuée de bulles monte. */
+/* ---------- Petits traits de surligneur ----------
+   Quand on coche : quelques traits de la couleur de l'espace s'échappent.
+   Quand un livre ou une journée est fini : une pluie de traits. */
 const FX = {
   at(el) {
     if (!el || !el.isConnected) return null;
     const r = el.getBoundingClientRect();
     return [r.left + r.width / 2, r.top + r.height / 2];
   },
-  bubble(x, y, c, size) {
+  dash(c) {
     const el = document.createElement('i');
-    el.className = 'bit';
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-    el.style.width = el.style.height = size + 'px';
+    el.className = 'dash' + (Math.random() < 0.5 ? ' b' : '');
     el.style.setProperty('--c', c);
     $('#fx').appendChild(el);
     return el;
   },
-  burst(pt, colors, n = 12, power = 1) {
-    if (!pt || calm()) return;
+  burst(pt, colors, n, power) {
+    n = n || 8; power = power || 1;
+    if (!pt || calm() || !document.body.animate) return;
     for (let i = 0; i < n; i++) {
-      const el = this.bubble(pt[0], pt[1], colors[i % colors.length], 6 + Math.random() * 10);
-      const a = (Math.PI * 2 * i) / n + Math.random() * 0.6;
-      const d = (26 + Math.random() * 38) * power;
-      const dx = Math.cos(a) * d; const dy = Math.sin(a) * d * 0.7;
+      const el = this.dash(colors[i % colors.length]);
+      const a = (Math.PI * 2 * i) / n + Math.random() * 0.5;
+      const d = (24 + Math.random() * 26) * power;
+      const rot = (a * 180) / Math.PI;
+      const x0 = pt[0] - 11; const y0 = pt[1] - 4;
       el.animate([
-        { transform: 'translate(-50%,-50%) scale(.2)', opacity: 0 },
-        { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`, opacity: 1, offset: 0.4 },
-        { transform: `translate(calc(-50% + ${dx * 1.2}px), calc(-50% + ${dy - 40 * power}px)) scale(.9)`, opacity: 0 },
-      ], { duration: 900 + Math.random() * 500, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => el.remove();
+        { transform: `translate(${x0}px, ${y0}px) rotate(${rot}deg) scale(.3)`, opacity: 0 },
+        { transform: `translate(${x0 + Math.cos(a) * d}px, ${y0 + Math.sin(a) * d}px) rotate(${rot}deg) scale(1)`, opacity: 1, offset: 0.45 },
+        { transform: `translate(${x0 + Math.cos(a) * d * 1.3}px, ${y0 + Math.sin(a) * d * 1.3 + 12}px) rotate(${rot + 25}deg) scale(.7)`, opacity: 0 },
+      ], { duration: 640 + Math.random() * 300, easing: 'cubic-bezier(.2,.8,.3,1)' }).onfinish = () => el.remove();
     }
   },
   rain(colors) {
-    if (calm()) return;
+    if (calm() || !document.body.animate) return;
     const w = innerWidth; const h = innerHeight;
-    for (let i = 0; i < 46; i++) {
-      const size = 10 + Math.random() * 30;
-      const el = this.bubble(Math.random() * w, h + 30, colors[i % colors.length], size);
-      const sway = (Math.random() - 0.5) * 120;
+    for (let i = 0; i < 70; i++) {
+      const el = this.dash(colors[i % colors.length]);
+      const x = Math.random() * w; const drift = (Math.random() - 0.5) * 160;
+      const r0 = Math.random() * 360; const spin = (Math.random() - 0.5) * 540;
+      const s = 0.7 + Math.random() * 0.9;
       el.animate([
-        { transform: 'translate(-50%,0) scale(.6)', opacity: 0 },
-        { transform: `translate(calc(-50% + ${sway * 0.4}px), ${-h * 0.35}px) scale(1)`, opacity: 0.95, offset: 0.35 },
-        { transform: `translate(calc(-50% + ${sway}px), ${-h * (0.75 + Math.random() * 0.3)}px) scale(1.08)`, opacity: 0 },
-      ], { duration: 2400 + Math.random() * 1600, delay: Math.random() * 600, easing: 'cubic-bezier(.3,.5,.4,1)', fill: 'backwards' }).onfinish = () => el.remove();
+        { transform: `translate(${x}px, -30px) rotate(${r0}deg) scale(${s})`, opacity: 0 },
+        { transform: `translate(${x + drift * 0.3}px, ${h * 0.25}px) rotate(${r0 + spin * 0.3}deg) scale(${s})`, opacity: 1, offset: 0.2 },
+        { transform: `translate(${x + drift}px, ${h + 40}px) rotate(${r0 + spin}deg) scale(${s})`, opacity: 0.9 },
+      ], { duration: 2200 + Math.random() * 1600, delay: Math.random() * 700, easing: 'cubic-bezier(.35,.2,.6,1)', fill: 'backwards' }).onfinish = () => el.remove();
     }
   },
 };

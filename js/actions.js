@@ -130,9 +130,10 @@ function toggleTheme() {
   commit(() => { state.prefs.theme = dark ? 'clair' : 'sombre'; state.prefsU = now(); });
 }
 function shake(sel) { const el = $(sel); if (!el) return; el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); el.focus(); Haptic.tap(); }
-/* Bulles : la couleur du livre, éclaircie, et un peu de lumière */
-const GOLD = ['#ffd3b5', '#ffc1d3', '#cfc8ff', '#bfeee2', '#ffffff'];
-const sparkColors = (cloth) => [cloth || '#ff8b74', cloth || '#ff8b74', '#ffffff', ...GOLD.slice(0, 3)];
+/* Traits de surligneur : la couleur de l'espace, et un peu de jaune */
+const sideHex = (s) => (state && state.sides[s] ? state.sides[s].color : '#ff6fa5');
+function festive() { return [sideHex('perso'), sideHex('pro'), '#f2cf3a']; }
+const sparkColors = (c) => [c || '#ff6fa5', c || '#ff6fa5', '#f2cf3a'];
 
 /* ---------- Étapes ---------- */
 function setStepDone(pid, sid, value, el) {
@@ -153,7 +154,7 @@ function setStepDone(pid, sid, value, el) {
   if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, sparkColors(colOf(p)), 12); } else Haptic.tap();
   if (outcome === 'livrables' && before !== 'livrables') {
     setTimeout(() => {
-      Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(colOf(p)));
+      Haptic.tap(true); Sound.play('fete'); FX.rain([colOf(p), colOf(p), '#f2cf3a']);
       openPop({ type: 'celebrate', id: p.id });
     }, 260);
   } else renderPop();
@@ -162,7 +163,7 @@ function setStepDone(pid, sid, value, el) {
 }
 function celebrateDone(p) {
   setTimeout(() => {
-    Haptic.tap(true); Sound.play('fete'); FX.rain(sparkColors(colOf(p)));
+    Haptic.tap(true); Sound.play('fete'); FX.rain([colOf(p), colOf(p), '#f2cf3a']);
     toast(`« ${p.title} » est terminé`, { action: 'Annuler', onAction: () => Undo.undo() });
   }, 150);
 }
@@ -170,7 +171,7 @@ function checkDayDone() {
   const es = todayEntries();
   if (es.length > 1 && es.every((e) => e.done) && ui.dayDone !== state.today.date) {
     ui.dayDone = state.today.date;
-    setTimeout(() => { toast('Journée bouclée : tout ce qui était prévu est fait'); FX.rain(GOLD); }, 500);
+    setTimeout(() => { toast('Journée bouclée : tout ce qui était prévu est fait'); FX.rain(festive()); }, 500);
   }
 }
 function addFree(text) {
@@ -213,7 +214,12 @@ const actions = {
   /* navigation */
   tab(el) { ui.tab = el.dataset.tab; ui.expanded = null; renderTabbar(); renderMain(); window.scrollTo(0, 0); Haptic.tap(); },
   expand(el) { ui.expanded = ui.expanded === el.dataset.side ? null : el.dataset.side; renderMain(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
-  'toggle-table'(el) { LOCAL.collapsed = { ...(LOCAL.collapsed || {}), [el.dataset.side]: !(LOCAL.collapsed || {})[el.dataset.side] }; saveLocalPrefs(); renderMain(); },
+  'goto-carnet'() {
+    if (innerWidth < 760) { ui.tab = 'carnet'; renderTabbar(); renderMain(); window.scrollTo(0, 0); return; }
+    if (state.prefs.tables === false) { commit(() => { state.prefs.tables = true; state.prefsU = now(); }); }
+    const el = $('#carnet'); if (el) el.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth', block: 'start' });
+  },
+  music() { if (window.Music) Music.launch(); },
   'close-sheet'() { closeSheet(); },
   'close-pop'() { closePop(); },
   'open-project'(el) { if (ui.pop) { ui.pop = null; renderPop(); } openSheet({ type: 'page', id: el.dataset.id }); },
@@ -244,17 +250,17 @@ const actions = {
     const m = ui.sheet; if (!m || m.type !== 'new') return;
     const t = $('.new-title'); if (t) m.draft.title = t.value;
     if (!m.draft.title.trim()) { shake('.new-title'); return; }
-    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, cloth: m.draft.cloth });
+    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, due: m.draft.due });
     ui.flash = new Set([p.id]);
     ui.sheet = null;
     commit(() => { state.projects.unshift(p); state.orderU = now(); });
     if (innerWidth < 700) { ui.tab = p.side; renderTabbar(); renderMain(); }
     Haptic.tap(); Sound.play('add');
     requestAnimationFrame(() => {
-      const card = $(`.spine[data-id="${p.id}"]`);
+      const card = $(`.book[data-id="${p.id}"]`);
       if (card) { card.scrollIntoView({ block: 'nearest', behavior: calm() ? 'auto' : 'smooth' }); FX.burst(FX.at(card), sparkColors(colOf(p)), 16); }
     });
-    toast(`« ${p.title} » est posé sur la pile`);
+    toast(`« ${p.title} » est ajouté`);
   },
 
   /* étapes */
@@ -315,7 +321,7 @@ const actions = {
   unarchive(el) {
     const p = P(el.dataset.id); if (!p) return;
     commit(() => { p.archived = false; p.archivedAt = null; p.u = now(); state.orderU = now(); });
-    toast(`« ${p.title} » est de retour sur sa pile`);
+    toast(`« ${p.title} » est de retour dans les livres en cours`);
   },
   duplicate(el) {
     const p = P(el.dataset.id); if (!p) return;
@@ -351,7 +357,7 @@ const actions = {
     const nv = !it.done; const pt = FX.at(el);
     if (nv) ui.flash = new Set([it.id]);
     commit(() => { it.done = nv; state.today.u = now(); });
-    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, GOLD, 10); } else Haptic.tap();
+    if (nv) { Haptic.tap(); Sound.play('tick'); FX.burst(pt, ['#f2cf3a', '#f2cf3a', sideHex('perso')], 8); } else Haptic.tap();
     checkDayDone();
   },
   'toggle-today'(el) {
@@ -362,14 +368,14 @@ const actions = {
       state.today.u = now();
     });
     Haptic.tap();
-    if (!on) { Sound.play('add'); FX.burst(pt, GOLD, 9, 0.7); }
+    if (!on) { Sound.play('add'); FX.burst(pt, ['#f2cf3a'], 6, 0.7); }
   },
   'today-add'(el) {
     const { p, s } = el.dataset; if (inToday(p, s)) return;
     const pt = FX.at(el); const id = uid();
     ui.flash = new Set([id]);
     commit(() => { state.today.items.push({ id, projectId: p, stepId: s }); state.today.u = now(); });
-    Haptic.tap(); Sound.play('add'); FX.burst(pt, GOLD, 9, 0.7);
+    Haptic.tap(); Sound.play('add'); FX.burst(pt, ['#f2cf3a'], 6, 0.7);
   },
   'today-remove'(el) { commit(() => { state.today.items = state.today.items.filter((it) => it.id !== el.dataset.id); state.today.u = now(); }); },
   'today-remove-step'(el) { commit(() => { state.today.items = state.today.items.filter((it) => !(it.projectId === el.dataset.p && it.stepId === el.dataset.s)); state.today.u = now(); }); Haptic.tap(); },
@@ -619,5 +625,5 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Enter' && !e.shiftKey && t.dataset && t.dataset.enter) { e.preventDefault(); actions[t.dataset.enter](t); return; }
-  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.pg-title, .row-name, .pile-name, .td-free, .prop-in, .in')) { e.preventDefault(); t.blur(); }
+  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.pg-title, .row-name, .half-name, .td-free, .prop-in, .in')) { e.preventDefault(); t.blur(); }
 });

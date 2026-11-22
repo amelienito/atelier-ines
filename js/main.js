@@ -45,6 +45,9 @@
 
   Sync.start();
 
+  /* Hors ligne : l'atelier et l'outil Pour Inès restent consultables */
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
   /* Retour sur l'appli : nouveau jour ? modifs faites ailleurs ? */
   const wake = () => {
     if (document.visibilityState !== 'visible') return;
@@ -80,7 +83,7 @@
   const APP_V = ((document.querySelector('script[src*="main.js"]') || {}).src || '').split('v=')[1] || '';
   let newV = null; let lastTouch = Date.now();
   ['pointerdown', 'keydown'].forEach((t) => addEventListener(t, () => { lastTouch = Date.now(); }, true));
-  const quiet = () => !ui.sheet && !ui.pop && !isTyping() && !document.body.classList.contains('dragging');
+  const quiet = () => !ui.sheet && !ui.pop && !isTyping() && !document.body.classList.contains('dragging') && !(window.Music && Music.st.mode !== 'off');
   const install = () => {
     if (!newV || !quiet() || sessionStorage.getItem('atelier.upd') === newV) return;
     sessionStorage.setItem('atelier.upd', newV);       // jamais deux fois de suite

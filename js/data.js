@@ -13,21 +13,27 @@ const DEFAULT_OWNER = 'amelienito';
 const DEFAULT_REPO = 'atelier-ines-data';
 const SIDES = ['perso', 'pro'];
 
-/* ---------- Couleurs des livres et des espaces ---------- */
-const CLOTHS = [
-  ['Framboise', '#f0648c'], ['Corail', '#ff8b74'], ['Pêche', '#ffb07c'], ['Miel', '#f5c451'],
-  ['Pistache', '#b3d66a'], ['Menthe', '#6fd5b0'], ['Lagon', '#4dc3d6'], ['Ciel', '#7fa9ff'],
-  ['Pervenche', '#9d92ff'], ['Lilas', '#c890f2'], ['Rose', '#ff9fc8'], ['Sable', '#ddc4a2'],
+/* ---------- Couleurs : des surligneurs ----------
+   Une couleur par espace. Elle ne sert qu'à une chose : montrer ce qui
+   est fait (comme un coup de surligneur dans le carnet). */
+const MARKERS = [
+  ['Rose', '#ff6fa5'], ['Corail', '#ff8668'], ['Orange', '#ffa24c'], ['Jaune', '#f2cf3a'],
+  ['Vert', '#5fd08a'], ['Menthe', '#3ecdb5'], ['Bleu', '#5fb2ff'], ['Lilas', '#a58bff'],
 ];
-/* Anciennes toiles (v3) → nouvelle couleur */
+const CLOTHS = MARKERS;
+/* Anciennes couleurs (v3 à v5) → surligneur le plus proche */
 const OLD_CLOTH = {
-  '#6b1f2a': '#f0648c', '#b5332a': '#ff8b74', '#97461f': '#ffb07c', '#c2902a': '#f5c451',
-  '#5c6a2c': '#b3d66a', '#1e4637': '#6fd5b0', '#0d5a62': '#4dc3d6', '#1d2945': '#7fa9ff',
-  '#4a2446': '#c890f2', '#b06873': '#ff9fc8', '#c4b89f': '#ddc4a2', '#1b1a1d': '#9d92ff',
-  '#e0457b': '#ff8b74', '#1f8460': '#4dc3d6',
+  '#ff8b74': '#ff6fa5', '#4dc3d6': '#5fd08a',
+  '#f0648c': '#ff6fa5', '#ffb07c': '#ffa24c', '#f5c451': '#f2cf3a', '#b3d66a': '#5fd08a',
+  '#6fd5b0': '#3ecdb5', '#7fa9ff': '#5fb2ff', '#9d92ff': '#a58bff', '#c890f2': '#a58bff',
+  '#ff9fc8': '#ff6fa5', '#ddc4a2': '#ffa24c',
+  '#6b1f2a': '#ff6fa5', '#b5332a': '#ff8668', '#97461f': '#ffa24c', '#c2902a': '#f2cf3a',
+  '#5c6a2c': '#5fd08a', '#1e4637': '#3ecdb5', '#0d5a62': '#3ecdb5', '#1d2945': '#5fb2ff',
+  '#4a2446': '#a58bff', '#b06873': '#ff6fa5', '#c4b89f': '#ffa24c', '#1b1a1d': '#a58bff',
+  '#e0457b': '#ff6fa5', '#1f8460': '#5fd08a',
 };
 const hue = (c) => { const k = String(c || '').toLowerCase(); return OLD_CLOTH[k] || k; };
-/* Couleurs des pastilles de type */
+/* Couleurs des pastilles de type (gardées dans les données, plus affichées) */
 const PALETTE = [
   ['Framboise', '#d0436f'], ['Corail', '#e0603f'], ['Abricot', '#e5862b'], ['Miel', '#c9970f'],
   ['Sauge', '#5f9457'], ['Sapin', '#1f8460'], ['Lagon', '#1593a8'], ['Bleuet', '#4470e0'],
@@ -41,14 +47,14 @@ const BOOK_EMOJIS = ['📕', '📗', '📘', '📙', '📓', '📔', '📒'];
 /* ---------- Modèles par défaut (tout est modifiable dans Réglages) ---------- */
 const DEFAULT_SIDES = {
   perso: {
-    name: 'Bibliothèque perso', emoji: '📚', color: '#ff8b74',
+    name: 'Bibliothèque perso', emoji: '📚', color: '#ff6fa5',
     steps: ['Typeset', 'Impression', 'Couture', 'Colle', 'Maquette', 'Découpe carton',
       'Découpe Cricut', 'Impression couverture', 'Vinyle', 'Assemblage final'],
     deliverables: ['Dossier du projet', 'Fichiers typeset + maquette rangés', 'Photos du bind'],
     types: [['Perso', '#7e5fe0'], ['Bind exchange', '#e5862b']],
   },
   pro: {
-    name: 'Activité pro', emoji: '✂️', color: '#4dc3d6',
+    name: 'Activité pro', emoji: '✂️', color: '#5fd08a',
     steps: ['Création maquette', 'Envoi maquette', 'Validation maquette', 'Règlement acompte',
       'Commande matériel (si besoin)', 'Découpe carton', 'Impression couv + découpe Cricut',
       'Vinyle', 'Impression page de garde', 'Assemblage du livre', 'Photo du livre',
@@ -125,7 +131,7 @@ function buildProject(s, side, title, o = {}) {
       ...(o.extra || []).map((n) => ({ id: uid(), name: n, done: false, custom: true })),
     ],
     deliverables: sd.deliverables.map((d) => ({ id: uid(), name: d.name, done: false })),
-    start: o.start ?? todayStr(), end: '', endAuto: false,
+    start: o.start ?? todayStr(), end: '', endAuto: false, due: o.due || '',
     archived: false, archivedAt: null, created: now(), u: now(),
   };
 }
@@ -139,15 +145,15 @@ function seedState() {
   const s = freshState();
   s.seed = true;
   const mk = (side, title, done, o) => {
-    const p = buildProject(s, side, title, { start: '', ...o });
-    p.steps.forEach((st, i) => { st.done = i < done; });
+    const p = buildProject(s, side, title, { start: dayStr(new Date(Date.now() - (12 + done * 2) * 864e5)), ...o });
+    p.steps.forEach((st, i) => { st.done = i < done; if (st.done) st.doneAt = Date.now() - Math.max(0, done - i - 1) * 864e5 * 1.3 - 36e5; });
     p.demo = true;
     s.projects.push(p);
     return p;
   };
   const jl = mk('perso', 'Just Lovers', 3, { kind: 'Perso', cloth: '#ff9fc8' });
   mk('perso', 'Green Light', 0, { cloth: '#b3d66a', skip: ['Découpe Cricut'] });
-  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', cloth: '#7fa9ff', client: 'Camille' });
+  const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', client: 'Camille', due: dayStr(new Date(Date.now() + 9 * 864e5)) });
   mk('pro', 'Eragon', 7, { kind: 'Rebind', cloth: '#ffb07c' });
   mk('pro', 'Les Liaisons dangereuses', 2, { kind: 'Couverture', cloth: '#c890f2' });
   s.today.items = [
@@ -227,7 +233,7 @@ function normProject(p, sd) {
     cover: normCover(p.cover),
     kind: p.side === 'perso' && p.kind === 'Fanfic' ? 'Perso' : str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
     steps, deliverables,
-    start: str(p.start), end: str(p.end), endAuto: !!p.endAuto,
+    start: str(p.start), end: str(p.end), endAuto: !!p.endAuto, due: str(p.due),
     archived: !!p.archived, archivedAt: +p.archivedAt || null,
     created: +p.created || +p.u || 0, u: +p.u || 0,
     ...(p.demo ? { demo: true } : {}),
@@ -346,7 +352,7 @@ function archiveProject(p) {
 
 
 /* ---------- Couleur d'un livre : celle de son espace (cohérence d'un coup d'œil) ---------- */
-const colOf = (p) => state.sides[p.side] ? state.sides[p.side].color : '#ff8b74';
+const colOf = (p) => (state.sides[p.side] ? state.sides[p.side].color : '#ff6fa5');
 
 /* ---------- Avancement (vue d'ensemble) ----------
    Compte toutes les étapes et tous les livrables des livres en cours. */
@@ -370,4 +376,32 @@ function mixHex(a, b, t) {
   const h = (x) => [1, 3, 5].map((i) => parseInt(x.slice(i, i + 2), 16));
   const A = h(a); const B = h(b);
   return '#' + A.map((v, i) => Math.round(v * t + B[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
+}
+
+
+/* ---------- Activité des derniers jours (pour « Cette semaine ») ----------
+   Étapes cochées par jour et par espace, d'après la date où elles l'ont été. */
+function weekActivity(days = 7) {
+  const out = [];
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(t0.getTime() - i * 864e5);
+    out.push({ date: d, key: dayStr(d), perso: 0, pro: 0 });
+  }
+  const idx = new Map(out.map((x, i) => [x.key, i]));
+  for (const p of state.projects) {
+    for (const st of p.steps) {
+      if (!st.done || !st.doneAt) continue;
+      const i = idx.get(dayStr(new Date(st.doneAt)));
+      if (i !== undefined) out[i][p.side]++;
+    }
+  }
+  return out;
+}
+
+/* Jours restants avant la date « à rendre » (négatif : en retard) */
+function daysLeft(iso) {
+  if (!iso) return null;
+  const a = new Date(iso + 'T00:00'); const b = new Date(); b.setHours(0, 0, 0, 0);
+  return Math.round((a - b) / 864e5);
 }

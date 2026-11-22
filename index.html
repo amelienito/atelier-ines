@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Atelier</title>
-  <meta name="theme-color" content="#f1edf6">
+  <meta name="theme-color" content="#f3f3f0">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -12,27 +12,26 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="favicon.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&family=Funnel+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=5.1">
+  <link rel="preload" href="fonts/MonaSans.woff" as="font" type="font/woff" crossorigin>
+  <link rel="stylesheet" href="style.css?v=6.0">
 </head>
 <body data-tab="today" class="intro">
-  <div id="sky" aria-hidden="true"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i></div>
   <div id="app">
     <header class="top" id="top"></header>
     <main id="main"></main>
   </div>
   <nav class="tabbar" id="tabbar" aria-label="Sections"></nav>
+  <div id="music" hidden></div>
   <div id="sheet-root"></div>
   <div id="pop-root"></div>
   <div id="toast-root" aria-live="polite"></div>
   <div id="fx" aria-hidden="true"></div>
-  <script src="js/data.js?v=5.1"></script>
-  <script src="js/fx.js?v=5.1"></script>
-  <script src="js/sync.js?v=5.1"></script>
-  <script src="js/views.js?v=5.1"></script>
-  <script src="js/actions.js?v=5.1"></script>
-  <script src="js/main.js?v=5.1"></script>
+  <script src="js/data.js?v=6.0"></script>
+  <script src="js/fx.js?v=6.0"></script>
+  <script src="js/sync.js?v=6.0"></script>
+  <script src="js/views.js?v=6.0"></script>
+  <script src="js/music.js?v=6.0"></script>
+  <script src="js/actions.js?v=6.0"></script>
+  <script src="js/main.js?v=6.0"></script>
 </body>
 </html>
