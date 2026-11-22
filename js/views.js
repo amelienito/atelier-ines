@@ -202,7 +202,7 @@ function halfHTML(side) {
       </div>
     </header>
     ${list.length ? `<ol class="books" data-sortable="side-${side}">${list.map(bookHTML).join('')}</ol>`
-      : `<div class="empty"><p>Aucun livre en cours ici.</p><button class="btn" data-action="new-project" data-side="${side}">${I('plus', 16)}Commencer un livre</button></div>`}
+      : `<div class="empty"><button class="btn" data-action="new-project" data-side="${side}">${I('plus', 16)}Commencer un livre</button></div>`}
   </section>`;
 }
 
@@ -258,7 +258,7 @@ function todayHTML() {
       <section class="td-group${g[0] === 'free' ? '' : ' s-' + g[0]}">
         <h3 class="td-g${g[0] === 'free' ? ' free' : ''}"><i></i>${esc(g[1])}<span class="n">${g[2].filter((e) => !e.done).length || ''}</span></h3>
         <ul class="td-list" data-sortable="today">${g[2].filter(shown).map(todoHTML).join('')}</ul>
-      </section>`).join('') : `<p class="td-empty">${all ? 'Tout ce qui était prévu est fait. Belle journée.' : 'Rien de prévu pour l’instant. Note une tâche, ou pioche une étape juste en dessous.'}</p>`}
+      </section>`).join('') : `<p class="td-empty">${all ? 'Tout ce qui était prévu est fait. Belle journée.' : sug.length ? 'Rien de prévu pour l’instant. Note une tâche, ou pioche une étape juste en dessous.' : 'Rien de prévu pour l’instant. Note une tâche ici.'}</p>`}
     ${done ? `<button class="td-done-toggle" data-action="toggle-done">${I('check', 15)}${ui.showDone ? 'Masquer ce qui est fait' : `${plural(done, 'tâche faite', 'tâches faites')} aujourd’hui`}</button>` : ''}
     <label class="td-add">${I('plus', 18)}<input id="free-input" type="text" placeholder="Noter une tâche" data-enter="add-free" autocomplete="off" enterkeyhint="done"></label>
     ${sug.length ? `<div class="td-sugg"><h4>Pour la suite</h4>${sug.map((x) => `
@@ -308,7 +308,7 @@ function carnetHTML() {
       </div>
       ${weekHTML(month)}
     </div>` : '<p class="mx-empty">Le carnet se remplira au fil des livres.</p>'}
-    <div class="mxs">${SIDES.map(matrixHTML).join('')}</div>
+    ${t.books ? `<div class="mxs">${SIDES.map(matrixHTML).join('')}</div>` : ''}
   </section>`;
 }
 function weekHTML(month) {
