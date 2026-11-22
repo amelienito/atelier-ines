@@ -199,6 +199,10 @@ function applyOrder(kind, ids) {
     const key = kind === 'steps' ? 'steps' : 'deliverables';
     const moved = sortBy(p[key]); if (moved.length !== p[key].length || same(moved, p[key])) return;
     commit(() => { p[key] = moved; p.u = now(); });
+  } else if (kind.startsWith('fields-')) {
+    const side = kind.slice(7); const arr = state.sides[side].fields; const moved = sortBy(arr);
+    if (moved.length !== arr.length || same(moved, arr)) return;
+    commit(() => { state.sides[side].fields = moved; state.sidesU = now(); });
   } else if (kind.startsWith('tpl-')) {
     const [, side, key] = kind.split('-'); const arr = state.sides[side][key]; const moved = sortBy(arr);
     if (moved.length !== arr.length || same(moved, arr)) return;
@@ -236,6 +240,36 @@ const actions = {
   'arch-filter'(el) { ui.archFilter = el.dataset.f; renderSheet(); },
   'set-tab'(el) { ui.setTab = el.dataset.tab; renderSheet(); const sc = $('.sheet .set-body'); if (sc) sc.scrollTop = 0; },
   'set-side'(el) { ui.setSide = el.dataset.side; renderSheet(); Haptic.tap(); },
+  'np-spec'() { const m = ui.sheet; m.specOpen = !m.specOpen; renderSheet(); },
+  'draft-spec-pick'(el) { const m = ui.sheet; m.draft.spec = m.draft.spec || {}; m.draft.spec[el.dataset.f] = el.dataset.v; renderSheet(); Haptic.tap(); },
+  'spec-pick'(el) {
+    const p = P(ui.sheet && ui.sheet.id); if (!p) return;
+    commit(() => { p.spec = Object.assign({}, p.spec, { [el.dataset.f]: el.dataset.v }); p.u = now(); });
+    Haptic.tap();
+  },
+  'steps-open'(el) { ui.stepsOpen = ui.stepsOpen || {}; ui.stepsOpen[el.dataset.id] = !ui.stepsOpen[el.dataset.id]; renderSheet(); },
+  'log-add'(el) {
+    const inp = $('#log-input'); const v = inp.value.trim(); if (!v) { inp.focus(); return; }
+    const p = P(el.dataset.id || (ui.sheet && ui.sheet.id)); if (!p) return;
+    commit(() => { p.log = (p.log || []).concat([{ id: uid(), at: now(), text: v }]); p.u = now(); });
+    Haptic.tap(); setTimeout(() => { const i = $('#log-input'); if (i) i.focus(); }, 0);
+  },
+  'log-remove'(el) {
+    const p = P(el.dataset.p); if (!p) return;
+    commit(() => { p.log = (p.log || []).filter((x) => x.id !== el.dataset.id); p.u = now(); });
+    toast('Retiré du journal', { action: 'Annuler', onAction: () => Undo.undo() });
+  },
+  'photo-zoom'(el) { el.classList.toggle('big'); },
+  'field-toggle'(el) {
+    const f = state.sides[el.dataset.side].fields.find((x) => x.id === el.dataset.id); if (!f) return;
+    commit(() => { f.on = !f.on; state.sidesU = now(); }); Haptic.tap();
+  },
+  'field-remove'(el) { const { side, id } = el.dataset; commit(() => { state.sides[side].fields = state.sides[side].fields.filter((x) => x.id !== id); state.sidesU = now(); }); },
+  'field-add'(el) {
+    const side = el.dataset.side; const inp = $(`#field-${side}`); const v = inp.value.trim(); if (!v) { inp.focus(); return; }
+    commit(() => { state.sides[side].fields.push({ id: uid(), name: v, on: true }); state.sidesU = now(); });
+    setTimeout(() => { const i = $(`#field-${side}`); if (i) i.focus(); }, 0);
+  },
   'plan-more'(el) { ui.planOpen = ui.planOpen || {}; ui.planOpen[el.dataset.id] = !ui.planOpen[el.dataset.id]; renderSheet(); },
   'mu-vol'(el) {
     LOCAL.muVol = +el.dataset.v; saveLocalPrefs(); renderSheet(); Haptic.tap();
@@ -263,7 +297,7 @@ const actions = {
     const m = ui.sheet; if (!m || m.type !== 'new') return;
     const t = $('.new-title'); if (t) m.draft.title = t.value;
     if (!m.draft.title.trim()) { shake('.new-title'); return; }
-    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, due: m.draft.due });
+    const p = buildProject(state, m.side, m.draft.title, { skip: m.skip, extra: m.extra, kind: m.draft.kind, client: m.draft.client, contact: m.draft.contact, due: m.draft.due, spec: m.draft.spec });
     ui.flash = new Set([p.id]);
     ui.sheet = null;
     commit(() => { state.projects.unshift(p); state.orderU = now(); });
@@ -343,6 +377,7 @@ const actions = {
     c.archived = false; c.archivedAt = null; c.start = todayStr(); c.end = ''; c.endAuto = false;
     c.steps = c.steps.map((s) => ({ ...s, id: uid(), done: false, doneAt: undefined }));
     c.deliverables = c.deliverables.map((d) => ({ ...d, id: uid(), done: false }));
+    c.log = [];
     if (c.cover && c.cover.t === 'img') c.cover = { ...c.cover };
     commit(() => { const i = state.projects.findIndex((x) => x.id === p.id); state.projects.splice(i + 1, 0, normProject(c, state.sides[c.side])); state.orderU = now(); });
     openSheet({ type: 'page', id: c.id });
@@ -527,7 +562,7 @@ document.addEventListener('click', (e) => { if (e.target.closest && e.target.clo
 addEventListener('error', (e) => { if (e && e.message && !/Script error/.test(e.message)) toast('Petit souci : ' + e.message.slice(0, 90)); });
 
 /* Modifications en direct dans les champs (noms, notes…) */
-const EDIT_ATTRS = ['pfield', 'stepName', 'livrName', 'spaceName', 'tpl', 'type', 'free', 'setting'];
+const EDIT_ATTRS = ['pfield', 'stepName', 'livrName', 'spaceName', 'tpl', 'type', 'free', 'setting', 'spec', 'field'];
 function applyEdit(t) {
   const d = t.dataset; const v = t.isContentEditable ? t.textContent : t.value;
   if (d.pfield) {
@@ -563,6 +598,15 @@ function applyEdit(t) {
     if (!val) { commit(() => { state.today.items = state.today.items.filter((x) => x.id !== it.id); state.today.u = now(); }); return; }
     if (it.text === val) return;
     commit(() => { it.text = val; state.today.u = now(); }, { sheet: false, pop: false });
+  } else if (d.spec) {
+    const p = P(ui.sheet && ui.sheet.id); if (!p) return;
+    const val = v.trim(); const cur = (p.spec || {})[d.spec] || '';
+    if (cur === val) return;
+    commit(() => { const sp = Object.assign({}, p.spec); if (val) sp[d.spec] = val; else delete sp[d.spec]; p.spec = sp; p.u = now(); }, { sheet: false, pop: false });
+  } else if (d.field) {
+    const [side, id] = d.field.split('|'); const f = state.sides[side].fields.find((x) => x.id === id);
+    const val = v.trim(); if (!f || !val || f.name === val) return;
+    commit(() => { f.name = val; state.sidesU = now(); }, { sheet: false, pop: false });
   } else if (d.setting === 'user') {
     const val = v.trim(); if (state.user === val) return;
     commit(() => { state.user = val; state.userU = now(); }, { sheet: false, pop: false });
@@ -571,6 +615,7 @@ function applyEdit(t) {
 const editTimers = new WeakMap();
 document.addEventListener('input', (e) => {
   const t = e.target;
+  if (t.dataset.draftSpec !== undefined && ui.sheet && ui.sheet.type === 'new') { ui.sheet.draft.spec = ui.sheet.draft.spec || {}; ui.sheet.draft.spec[t.dataset.draftSpec] = t.value; return; }
   if (t.dataset.draft && ui.sheet && ui.sheet.type === 'new') {
     ui.sheet.draft[t.dataset.draft] = t.value;
     if (t.dataset.draft === 'title') { const pv = $('#np-title'); if (pv) pv.textContent = t.value || 'Titre du livre'; }
@@ -605,6 +650,15 @@ document.addEventListener('change', (e) => {
       commit(() => { p.cover = { t: 'img', key }; p.u = now(); });
       Haptic.tap(); Sync.pushCovers();
     }).catch(() => { m.busy = false; renderSheet(); toast('Cette image n’a pas pu être lue. Essaie une photo JPG ou PNG.'); });
+    return;
+  }
+  if (t.id === 'log-photo' && t.files[0]) {
+    const m = ui.sheet; const p = P(m && m.id); if (!p) return;
+    toast('Photo en préparation…');
+    Covers.fromFile(t.files[0]).then((key) => {
+      commit(() => { p.log = (p.log || []).concat([{ id: uid(), at: now(), photo: key }]); p.u = now(); });
+      Haptic.tap(); Sync.pushCovers();
+    }).catch(() => toast('Cette image n’a pas pu être lue. Essaie une photo JPG ou PNG.'));
     return;
   }
   if (t.id === 'import-file' && t.files[0]) {

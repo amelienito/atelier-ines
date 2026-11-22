@@ -41,6 +41,7 @@ const ICONS = {
   min: '<path d="M6 9l6 6 6-6"/>',
   max: '<path d="M6 15l6-6 6 6"/>',
   ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  pen: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="m13.5 6.5 4 4"/>',
 };
 const I = (n, s = 18) => `<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
@@ -135,13 +136,8 @@ function renderTop() {
     ${dockHTML()}`;
 }
 function miniCodeHTML() {
-  const parts = [];
-  SIDES.forEach((side, k) => {
-    const list = activeProjects(side); if (!list.length) return;
-    if (parts.length) parts.push('<i class="g"></i>');
-    list.forEach((p) => p.steps.forEach((s) => parts.push(`<i class="${s.done ? 'd s-' + side : ''}"></i>`)));
-  });
-  return `<span class="mini-code" aria-hidden="true">${parts.slice(0, 120).join('')}</span>`;
+  const t = stats();
+  return `<span class="mini-bar" aria-hidden="true"><i class="m2" style="width:${t.pct}%"></i></span>`;
 }
 function syncBtn() {
   const map = {
@@ -292,57 +288,44 @@ function todoHTML(e) {
    ===================================================================== */
 function carnetHTML() {
   const t = stats(); const na = archivedProjects().length;
-  const ts = SIDES.map((s) => stats(s));
   const month = [t.finished ? plural(t.finished, 'livre terminé', 'livres terminés') : '', t.stepsMonth ? plural(t.stepsMonth, 'étape cochée', 'étapes cochées') : ''].filter(Boolean);
   const off = state.prefs.tables === false;
+  const sides = SIDES.map((s) => ({ s, t: stats(s) }));
   return `
   <section class="carnet${off ? ' hide-desk' : ''}" id="carnet">
     <div class="cn-top"><h2>Le carnet</h2>${na ? `<button class="btn small quiet" data-action="open-archives">${I('books', 16)}${plural(na, 'livre terminé', 'livres terminés')}</button>` : ''}</div>
     ${t.total ? `
-    <div class="cn-head">
-      <div class="cn-big" role="img" aria-label="${t.pct} % de l’atelier accompli"><b>${t.pct}</b><small>%</small></div>
-      <div class="cn-cap">
-        <p><b>de l’atelier accompli.</b> ${t.done} cases cochées sur ${t.total}, dans ${plural(t.books, 'livre en cours', 'livres en cours')} (étapes et livrables).</p>
-        ${month.length ? `<p>Ce mois-ci : ${month.join(', ')}.</p>` : ''}
+    <div class="cn-sum">
+      <div class="cn-main">
+        <p class="cn-line"><b class="cn-pct">${t.pct} %</b><span>de ce qu’il y a à faire est fait</span></p>
+        <div class="gauge big" role="progressbar" aria-valuenow="${t.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de l’atelier">${sides.map((x) => `<i class="m2 s-${x.s}" style="width:${t.total ? (x.t.done / t.total * 100).toFixed(2) : 0}%"></i>`).join('')}</div>
+        <p class="cn-note">${t.done} ${t.done > 1 ? 'cases cochées' : 'case cochée'} sur ${t.total}, en comptant les étapes et les livrables des ${plural(t.books, 'livre en cours', 'livres en cours')}.</p>
+        <div class="cn-sides">${sides.map((x) => `
+          <div class="cn-side s-${x.s}"><span class="cn-side-n"><i class="sq"></i>${esc(state.sides[x.s].name)}</span>
+            <span class="gauge"><i class="m3" style="width:${x.t.pct}%"></i></span>
+            <b>${x.t.pct} %</b><small>${x.t.done} sur ${x.t.total}</small></div>`).join('')}
+        </div>
       </div>
-      ${weekHTML()}
-    </div>
-    ${codeHTML()}
-    <div class="code-legend">${SIDES.map((s, i) => `<span class="s-${s}"><i></i>${esc(state.sides[s].name)}, ${ts[i].pct} %</span>`).join('')}<span><i class="todo"></i>Reste à faire</span></div>`
-    : '<p class="mx-empty">Le carnet se remplira au fil des livres.</p>'}
+      ${weekHTML(month)}
+    </div>` : '<p class="mx-empty">Le carnet se remplira au fil des livres.</p>'}
     <div class="mxs">${SIDES.map(matrixHTML).join('')}</div>
   </section>`;
 }
-/* Toute la liste d'un trait : un bâtonnet par étape et par livrable */
-function codeHTML() {
-  let html = '';
-  SIDES.filter((s) => activeProjects(s).length).forEach((s, k) => {
-    if (k) html += '<i class="gg"></i>';
-    html += `<span class="s-${s}" style="display:contents">`;
-    activeProjects(s).forEach((p, j) => {
-      if (j) html += '<i class="g"></i>';
-      p.steps.forEach((x) => { html += `<i class="${x.done ? 'd' : ''}"></i>`; });
-      p.deliverables.forEach((x) => { html += `<i class="${x.done ? 'd' : ''}"></i>`; });
-    });
-    html += '</span>';
-  });
-  return `<div class="code" aria-hidden="true">${html}</div>`;
-}
-function weekHTML() {
+function weekHTML(month) {
   const wk = weekActivity(7); const total = wk.reduce((n, d) => n + d.perso + d.pro, 0);
-  const L = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
-  const MAX = 8;
-  return `<div class="week" role="img" aria-label="${plural(total, 'étape cochée', 'étapes cochées')} ces 7 derniers jours">
-    <p class="week-cap">Cette semaine : <b>${plural(total, 'étape cochée', 'étapes cochées')}</b></p>
-    ${wk.map((d) => {
-      const n = d.perso + d.pro; const shownN = Math.min(n, MAX);
-      const pp = Math.min(d.perso, shownN); const pr = shownN - pp;
-      return `<div><div class="week-col">${'<i class="s-perso"></i>'.repeat(pp)}${'<i class="s-pro"></i>'.repeat(pr)}${n > MAX ? `<span class="more">+${n - MAX}</span>` : ''}</div></div>`;
-    }).join('')}
-    ${wk.map((d, i) => `<p class="week-l${i === wk.length - 1 ? ' now' : ''}">${L[d.date.getDay()]}</p>`).join('')}
+  const max = Math.max(4, ...wk.map((d) => d.perso + d.pro));
+  const L = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
+  return `<div class="week">
+    <h3>Ces 7 derniers jours</h3>
+    <p class="week-sum"><b>${plural(total, 'étape cochée', 'étapes cochées')}</b>${month && month.length ? `<br>Ce mois-ci : ${month.join(', ')}` : ''}</p>
+    <div class="week-bars" role="img" aria-label="${plural(total, 'étape cochée', 'étapes cochées')} ces 7 derniers jours">
+      ${wk.map((d, i) => { const n = d.perso + d.pro; return `<div class="wb${i === wk.length - 1 ? ' now' : ''}">
+        <span class="wb-n">${n || ''}</span>
+        <span class="wb-col"><i class="s-pro" style="height:${(d.pro / max * 100).toFixed(1)}%"></i><i class="s-perso" style="height:${(d.perso / max * 100).toFixed(1)}%"></i></span>
+        <span class="wb-l">${i === wk.length - 1 ? 'auj.' : L[d.date.getDay()]}</span></div>`; }).join('')}
+    </div>
   </div>`;
 }
-
 /* Le tableau croisé d'un espace : les livres en lignes, les étapes en colonnes */
 function matrixCols(side) {
   const sd = state.sides[side];
@@ -357,7 +340,7 @@ function matrixCols(side) {
 }
 function matrixHTML(side) {
   const sd = state.sides[side]; const list = activeProjects(side); const t = stats(side);
-  const head = `<div class="mx-head s-${side}"><h3>${esc(sd.name)}</h3><span class="mx-bar"><i style="width:${t.pct}%"></i></span><span class="p">${t.pct} %</span></div>`;
+  const head = `<div class="mx-head s-${side}"><h3><i class="sq"></i>${esc(sd.name)}, le détail</h3></div>`;
   if (!list.length) return `<div class="mx-wrap">${head}<p class="mx-empty">Aucun livre en cours.</p></div>`;
   const m = matrixCols(side);
   const rows = list.map((p) => {
@@ -375,8 +358,8 @@ function matrixHTML(side) {
       <td class="dt">${esc(shortDate(p.start))}</td><td class="dt">${esc(shortDate(p.end))}</td><td class="pc">${pctOf(p)} %</td>
     </tr>`;
   }).join('');
-  return `<div class="mx-wrap s-${side}">${head}<div class="mx-scroll"><table class="mx">
-    <thead><tr><th></th>${m.cols.map((c) => `<th class="v"><span title="${esc(c.name)}">${esc(c.name)}</span></th>`).join('')}<th class="v dt"><span>Début</span></th><th class="v dt"><span>Fin</span></th><th></th></tr></thead>
+  return `<div class="mx-wrap s-${side}">${head}<p class="mx-help">Comme dans ton carnet : une ligne par livre, une colonne par étape. Touche une case pour la cocher ou la décocher.</p><div class="mx-scroll"><table class="mx">
+    <thead><tr><th></th>${m.cols.map((c) => `<th class="v"><span title="${esc(c.name)}">${esc(c.name)}</span></th>`).join('')}<th class="v dt"><span>Début</span></th><th class="v dt"><span>Fin</span></th><th class="v dt"><span>Fait</span></th></tr></thead>
     <tbody>${rows}</tbody></table></div></div>`;
 }
 
@@ -462,11 +445,48 @@ function rowHTML(kind, p, x) {
     <button class="x row-x" data-action="${isStep ? 'step-remove' : 'livr-remove'}" ${attrs} aria-label="Retirer">${I('x', 14)}</button>
   </li>`;
 }
+/* Un champ de la fiche technique : la saisie, et dessous ses valeurs déjà utilisées */
+function specHTML(side, f, val, draft) {
+  const vals = val ? [] : fieldValues(side, f.id, 5);
+  const attr = draft ? `data-draft-spec="${f.id}"` : `data-spec="${f.id}"`;
+  return `<div class="prop spec"><span class="prop-k">${esc(f.name)}</span><div class="spec-v">
+    <input class="prop-in" ${attr} value="${esc(val || '')}" placeholder="…" enterkeyhint="done" aria-label="${esc(f.name)}">
+    ${vals.length ? `<div class="spec-chips">${vals.map((v) => `<button class="spec-chip" data-action="${draft ? 'draft-spec-pick' : 'spec-pick'}" data-f="${f.id}" data-v="${esc(v)}">${esc(v)}</button>`).join('')}</div>` : ''}
+  </div></div>`;
+}
+function dayLabel(t) {
+  const d = new Date(t); const a = new Date(); a.setHours(0, 0, 0, 0);
+  const diff = Math.round((a - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 864e5);
+  if (diff === 0) return 'Aujourd’hui';
+  if (diff === 1) return 'Hier';
+  return cap(d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }));
+}
+function journalHTML(p) {
+  const all = journalOf(p); let last = '';
+  const items = all.map((e) => {
+    const day = dayLabel(e.at); const head = day !== last ? `<li class="jr-day">${esc(day)}</li>` : ''; last = day;
+    const hour = new Date(e.at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    let body;
+    if (e.kind === 'step') body = `<span class="jr-mark"><i class="sq"></i></span><span class="jr-txt"><b>${esc(e.text)}</b> fait</span>`;
+    else if (e.kind === 'start' || e.kind === 'end') body = `<span class="jr-mark"><i class="jr-dot"></i></span><span class="jr-txt">${esc(e.text)}</span>`;
+    else {
+      const u = e.photo ? Covers.url(e.photo) : '';
+      body = `<span class="jr-mark">${I(e.photo ? 'image' : 'pen', 15)}</span><span class="jr-txt">${e.text ? esc(e.text) : ''}${e.photo ? `<button class="jr-photo${u ? ' has-img' : ''}" data-cover="${esc(e.photo)}"${u ? ` style="--img:url('${u}')"` : ''} data-action="photo-zoom" aria-label="Agrandir la photo"></button>` : ''}</span>
+        <button class="x jr-x" data-action="log-remove" data-p="${p.id}" data-id="${e.id}" aria-label="Retirer du journal">${I('x', 14)}</button>`;
+    }
+    return `${head}<li class="jr-item jr-${e.kind}"><span class="jr-h">${hour}</span>${body}</li>`;
+  }).join('');
+  return `<div class="sec jr"><div class="sec-head"><h3>Journal</h3><span class="n">Il se remplit tout seul à chaque étape cochée</span></div>
+    <label class="add-row boxed jr-add">${I('pen', 17)}<input id="log-input" placeholder="Noter quelque chose sur ce livre" data-enter="log-add" data-id="${p.id}" autocomplete="off" enterkeyhint="done">
+      <span class="jr-cam" title="Ajouter une photo au journal">${I('image', 18)}<input type="file" accept="image/*" id="log-photo" aria-label="Ajouter une photo au journal"></span></label>
+    <ul class="jr-list">${items}</ul></div>`;
+}
 function pageHTML(m) {
   const p = P(m.id); if (!p) return '';
   const sd = state.sides[p.side]; const pr = progress(p); const ph = phase(p); const nx = nextStep(p); const ty = typeOf(p);
   const dd = p.deliverables.filter((d) => d.done).length;
   const hasImg = !!(p.cover && p.cover.t === 'img'); const u = hasImg ? Covers.url(p.cover.key) : '';
+  ui.stepsOpen = ui.stepsOpen || {};
   let st;
   if (p.archived) st = `Terminé${p.archivedAt ? ' le ' + dateFr(p.archivedAt) : ''}.`;
   else if (ph === 'livrables') st = 'Toutes les étapes sont faites. Plus que les livrables.';
@@ -474,6 +494,9 @@ function pageHTML(m) {
   else st = 'Aucune étape pour l’instant.';
   const prop = (k, inner) => `<div class="prop"><span class="prop-k">${k}</span>${inner}</div>`;
   const inp = (f, v, ph2, type) => `<input class="prop-in" ${type ? `type="${type}"` : ''} data-pfield="${f}" value="${esc(v)}" placeholder="${ph2 || ''}" enterkeyhint="done">`;
+  const doneSteps = p.steps.filter((x) => x.done); const todo = p.steps.filter((x) => !x.done);
+  const showDone = !!ui.stepsOpen[p.id] || !todo.length;
+  const fields = fieldsOn(p.side);
   return `
   <div class="pg s-${p.side}">
     <header class="pg-hero${hasImg ? ' with-photo' : ''}">
@@ -484,7 +507,7 @@ function pageHTML(m) {
         ${pr.total ? `<div class="pg-cells">${cellsHTML(p, { big: true, next: ph === 'encours' ? nx : null })}</div>` : ''}
       </div>
       <label class="pg-photo${u ? ' has-img' : ''}"${hasImg ? ` data-cover="${esc(p.cover.key)}"` : ''}${u ? ` style="--img:url('${u}')"` : ''} title="${hasImg ? 'Changer la photo' : 'Ajouter une photo'}">
-        <span>${I('image', 22)}${m.busy ? 'Préparation…' : 'Ajouter une photo'}</span>
+        <span>${I('image', 22)}${m.busy ? 'Préparation…' : 'Photo du livre'}</span>
         <input type="file" accept="image/*" id="cover-file" aria-label="${hasImg ? 'Changer la photo' : 'Ajouter une photo'}">
       </label>
       <button class="close pg-close" data-action="close-sheet" aria-label="Fermer">${I('x', 20)}</button>
@@ -493,19 +516,23 @@ function pageHTML(m) {
       <aside class="pg-side">
         ${p.archived ? `<div class="banner"><span>Terminé${p.archivedAt ? ' le ' + dateFr(p.archivedAt) : ''}.</span><button class="btn small" data-action="unarchive" data-id="${p.id}">Le remettre en cours</button></div>` : ''}
         <div class="props">
-          ${prop('Type', `<div class="chips">${sd.types.map((t) => `<button class="chip-btn${p.kind === t.name ? ' on' : ''}" data-action="set-kind" data-id="${p.id}" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('') || '<span class="muted small">À créer dans Réglages</span>'}</div>`)}
-          ${p.side === 'pro' || p.client || p.contact ? prop('Cliente', inp('client', p.client, 'Son nom')) + prop('Contact', inp('contact', p.contact, 'Insta, mail, téléphone')) : ''}
+          ${sd.types.length ? prop('Type', `<div class="chips">${sd.types.map((t) => `<button class="chip-btn${p.kind === t.name ? ' on' : ''}" data-action="set-kind" data-id="${p.id}" data-kind="${esc(t.name)}">${esc(t.name)}</button>`).join('')}</div>`) : ''}
+          ${p.side === 'pro' || p.client || p.contact ? prop('Pour', inp('client', p.client, 'Son nom')) + prop('Contact', inp('contact', p.contact, 'Insta, mail, téléphone')) : ''}
           ${p.side === 'pro' || p.due ? prop('À rendre', inp('due', p.due, '', 'date')) : ''}
           ${prop('Début', inp('start', p.start, '', 'date'))}
-          ${prop('Fin', inp('end', p.end, '', 'date'))}
+          ${p.end || ph !== 'encours' ? prop('Fin', inp('end', p.end, '', 'date')) : ''}
         </div>
-        <div class="sec" style="margin-top:1.6rem"><div class="sec-head"><h3>Notes</h3></div>
-          <textarea class="notes" data-pfield="notes" placeholder="Papier, couleurs, références, idées…">${esc(p.notes)}</textarea></div>
-        ${hasImg ? `<div class="photo-row" style="margin-top:1rem"><button class="btn small quiet" data-action="remove-photo" data-id="${p.id}">${I('image', 15)}Retirer la photo</button></div>` : ''}
+        <div class="sec"><div class="sec-head"><h3>Fiche technique</h3><button class="link" data-action="open-settings" data-tab="etapes" data-side="${p.side}">Choisir les champs</button></div>
+          ${fields.length ? `<div class="props">${fields.map((f) => specHTML(p.side, f, (p.spec || {})[f.id])).join('')}</div>` : '<p class="muted small">Aucun champ pour l’instant. Choisis-les dans Réglages, Modèles de livres.</p>'}
+        </div>
+        <div class="sec"><div class="sec-head"><h3>Notes</h3></div>
+          <textarea class="notes" data-pfield="notes" placeholder="Références, idées, ce qu’il ne faut pas oublier…">${esc(p.notes)}</textarea></div>
+        ${hasImg ? `<div class="photo-row" style="margin-top:1rem"><button class="btn small quiet" data-action="remove-photo" data-id="${p.id}">${I('image', 15)}Retirer la photo du livre</button></div>` : ''}
       </aside>
       <section class="pg-main">
         <div class="sec-head"><h3>Étapes</h3><span class="n">${pr.done} sur ${pr.total}</span></div>
-        <ul class="rows" data-sortable="steps">${p.steps.map((x) => rowHTML('step', p, x)).join('')}</ul>
+        ${doneSteps.length && todo.length ? `<button class="steps-done" data-action="steps-open" data-id="${p.id}">${I('check', 15)}${showDone ? 'Masquer les étapes faites' : `${plural(doneSteps.length, 'étape faite', 'étapes faites')}, les voir`}</button>` : ''}
+        <ul class="rows" data-sortable="steps">${p.steps.filter((x) => showDone || !x.done).map((x) => rowHTML('step', p, x)).join('')}</ul>
         <label class="add-row">${I('plus', 17)}<input id="step-input" placeholder="Ajouter une étape" data-enter="add-step" data-id="${p.id}" autocomplete="off" enterkeyhint="done"></label>
         <div class="livr${ph === 'livrables' ? ' is-due' : ''}">
           <div class="sec-head"><h3>Livrables de fin</h3><span class="n">${dd} sur ${p.deliverables.length}</span></div>
@@ -513,8 +540,8 @@ function pageHTML(m) {
           <ul class="rows" data-sortable="livr">${p.deliverables.map((x) => rowHTML('livr', p, x)).join('')}</ul>
           <label class="add-row">${I('plus', 17)}<input id="livr-input" placeholder="Ajouter un livrable" data-enter="add-livr" data-id="${p.id}" autocomplete="off" enterkeyhint="done"></label>
         </div>
+        ${journalHTML(p)}
         <footer class="pg-foot">
-          <span class="muted">${p.created ? 'Commencé le ' + dateFr(p.created) : ''}</span>
           <button class="btn quiet small" data-action="duplicate" data-id="${p.id}">${I('copy', 15)}Dupliquer</button>
           ${p.archived ? '' : `<button class="btn quiet small" data-action="archive-now" data-id="${p.id}">${I('archive', 15)}Ranger dans les terminés</button>`}
           <button class="btn quiet small danger" data-action="delete-project" data-id="${p.id}">${I('trash', 15)}Supprimer</button>
@@ -528,7 +555,7 @@ function pageHTML(m) {
 function newHTML(m) {
   const sd = state.sides[m.side];
   m.skip = m.skip || []; m.extra = m.extra || [];
-  m.draft = Object.assign({ title: '', kind: '', client: '', contact: '', due: '' }, m.draft || {});
+  m.draft = Object.assign({ title: '', kind: '', client: '', contact: '', due: '', spec: {} }, m.draft || {});
   const n = sd.steps.length - m.skip.length + m.extra.length;
   return `
   ${sheetHead('Nouveau livre', sd.name)}
@@ -548,6 +575,10 @@ function newHTML(m) {
       </div>
       <label class="add-row boxed">${I('plus', 17)}<input id="extra-input" placeholder="Une autre étape, par exemple Envoi du colis" data-enter="add-extra" autocomplete="off" enterkeyhint="done"></label>
     </div>
+    ${fieldsOn(m.side).length ? `<div class="field">
+      <button class="disclose" data-action="np-spec" aria-expanded="${!!m.specOpen}">${I(m.specOpen ? 'min' : 'plus', 16)}Fiche technique <em>Facultatif, ça se remplit aussi plus tard</em></button>
+      ${m.specOpen ? `<div class="props np-spec">${fieldsOn(m.side).map((f) => specHTML(m.side, f, (m.draft.spec || {})[f.id], true)).join('')}</div>` : ''}
+    </div>` : ''}
     <div class="np-preview"><span class="cells">${'<i class="c"></i>'.repeat(Math.max(0, n))}</span><span class="bk-n">0/${n}</span></div>
   </div>
   <div class="sheet-foot">
@@ -611,7 +642,7 @@ function standHTML(p) {
 /* ---------- Réglages ----------
    Quatre rubriques : ce qu'on voit, les listes proposées aux nouveaux
    livres, ce qui ne concerne que cet appareil, la synchro. */
-const SET_TABS = [['affichage', 'Affichage'], ['etapes', 'Étapes des livres'], ['appareil', 'Cet appareil'], ['memoire', 'Synchro et sauvegardes']];
+const SET_TABS = [['affichage', 'Affichage'], ['etapes', 'Modèles de livres'], ['appareil', 'Cet appareil'], ['memoire', 'Synchro et sauvegardes']];
 const SET_ALIAS = { apparence: 'affichage', espaces: 'etapes' };
 function settingsHTML(m) {
   const tab = SET_ALIAS[ui.setTab] || ui.setTab || 'affichage';
@@ -646,12 +677,13 @@ function displaySetHTML() {
 function stepsSetHTML() {
   const side = ui.setSide || 'perso'; const sd = state.sides[side];
   return `
-    <p class="set-intro">Les listes proposées quand tu crées un livre. Les changer ne touche pas aux livres déjà commencés : chacun se modifie dans sa propre fiche.</p>
-    <div class="seg set-side">${SIDES.map((x) => `<button class="${side === x ? 'on' : ''}" data-action="set-side" data-side="${x}"><i class="sq s-${x}"></i>${esc(state.sides[x].name)}</button>`).join('')}</div>
+    <p class="set-intro">Ce qui est proposé quand tu crées un livre, pour chaque espace. À régler une fois. Les changements ne touchent pas aux livres déjà commencés (sauf la fiche technique, qui s’adapte partout).</p>
+    <div class="seg set-side">${SIDES.map((x) => `<button class="${side === x ? 'on' : ''}" data-action="set-side" data-side="${x}"><i class="sq s-${x}"></i>${esc(shortName(x))}</button>`).join('')}</div>
     <div class="space-set s-${side}" id="set-${side}">
       ${tplListHTML(side, 'steps', 'Les étapes, dans l’ordre', 'Ajouter une étape')}
       ${tplListHTML(side, 'deliverables', 'Les livrables de fin', 'Ajouter un livrable')}
       ${typesSetHTML(side)}
+      ${fieldsSetHTML(side)}
     </div>`;
 }
 function deviceSetHTML() {
@@ -682,6 +714,16 @@ function tplListHTML(side, key, title, ph) {
       <input class="row-name" value="${esc(t.name)}" data-tpl="${side}|${key}|${t.id}" aria-label="Nom" enterkeyhint="done">
       <button class="x row-x" data-action="tpl-remove" data-side="${side}" data-key="${key}" data-id="${t.id}" aria-label="Supprimer ${esc(t.name)}">${I('x', 14)}</button></li>`).join('')}</ul>
     <label class="add-row">${I('plus', 17)}<input id="tpl-${side}-${key}" placeholder="${ph}" data-enter="tpl-add" data-side="${side}" data-key="${key}" autocomplete="off" enterkeyhint="done"></label></div>`;
+}
+function fieldsSetHTML(side) {
+  return `<div class="tpl"><h4>La fiche technique</h4>
+    <p class="muted small" style="margin:-.1rem 0 .5rem">Coche ce que tu veux noter pour chaque livre. Les réponses déjà données te sont reproposées en un toucher.</p>
+    <ul class="rows" data-sortable="fields-${side}">${state.sides[side].fields.map((f) => `
+      <li class="row field-row" data-id="${f.id}"><span class="grip" aria-hidden="true">${I('grip', 15)}</span>
+      <button class="box${f.on ? ' on m2' : ''}" data-action="field-toggle" data-side="${side}" data-id="${f.id}" aria-pressed="${f.on}" aria-label="${f.on ? 'Ne plus demander' : 'Demander'} « ${esc(f.name)} »"></button>
+      <input class="row-name" value="${esc(f.name)}" data-field="${side}|${f.id}" aria-label="Nom du champ" enterkeyhint="done">
+      <button class="x row-x" data-action="field-remove" data-side="${side}" data-id="${f.id}" aria-label="Supprimer ${esc(f.name)}">${I('x', 14)}</button></li>`).join('')}</ul>
+    <label class="add-row">${I('plus', 17)}<input id="field-${side}" placeholder="Ajouter un champ, par exemple Police" data-enter="field-add" data-side="${side}" autocomplete="off" enterkeyhint="done"></label></div>`;
 }
 function typesSetHTML(side) {
   return `<div class="tpl"><h4>Les types de livre</h4>

@@ -52,6 +52,7 @@ const DEFAULT_SIDES = {
       'Découpe Cricut', 'Impression couverture', 'Vinyle', 'Assemblage final'],
     deliverables: ['Dossier du projet', 'Fichiers typeset + maquette rangés', 'Photos du bind'],
     types: [['Perso', '#7e5fe0'], ['Bind exchange', '#e5862b']],
+    fields: [['Auteur ou fandom', true], ['Format', true], ['Papier', true], ['Couverture', true], ['Couture', false], ['Pages de garde', false], ['Tranchefile et signet', false], ['Nombre de pages', false], ['Lien du texte', false]],
   },
   pro: {
     name: 'Activité pro', emoji: '✂️', color: '#5fd08a',
@@ -61,6 +62,7 @@ const DEFAULT_SIDES = {
       'Envoi + validation photo', 'Règlement final', 'Envoi commande'],
     deliverables: ['Dossier du projet', 'Maquette finale (PDF)', 'Fichier de découpe Cricut', 'Photos du livre'],
     types: [['Couverture', '#4470e0'], ['Rebind', '#9a4386']],
+    fields: [['Prix', true], ['Format', true], ['Couverture', true], ['Livraison', true], ['Papier', false], ['Acompte', false], ['Pages de garde', false], ['Nombre de pages', false]],
   },
 };
 const DEFAULT_PREFS = { theme: 'auto', bg: 'doux', density: 'aeree', progress: 'perles', numbers: false, tables: true, links: true };
@@ -105,6 +107,7 @@ function makeSide(side, deterministic) {
     steps: d.steps.map((n) => ({ id: id('s', n), name: n })),
     deliverables: d.deliverables.map((n) => ({ id: id('l', n), name: n })),
     types: d.types.map(([n, c]) => ({ id: id('t', n), name: n, color: c })),
+    fields: d.fields.map(([n, on]) => ({ id: id('f', n), name: n, on })),
   };
 }
 
@@ -126,6 +129,7 @@ function buildProject(s, side, title, o = {}) {
     id, side, title: String(title || '').trim() || 'Sans titre',
     icon: o.icon || defaultIcon(id), cloth: o.cloth || defaultCloth(id), cover: o.cover || null,
     kind: o.kind || '', client: o.client || '', contact: o.contact || '', notes: '',
+    spec: Object.assign({}, o.spec || {}), log: [],
     steps: [
       ...sd.steps.filter((t) => !skip.has(t.id) && !skip.has(t.name)).map((t) => ({ id: uid(), tpl: t.id, name: t.name, done: false })),
       ...(o.extra || []).map((n) => ({ id: uid(), name: n, done: false, custom: true })),
@@ -151,7 +155,9 @@ function seedState() {
     s.projects.push(p);
     return p;
   };
-  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Perso', cloth: '#ff9fc8' });
+  const jl = mk('perso', 'Just Lovers', 3, { kind: 'Perso', spec: {} });
+  const f = (side, n) => (s.sides[side].fields.find((x) => x.name === n) || {}).id;
+  jl.spec[f('perso', 'Format')] = 'A5'; jl.spec[f('perso', 'Papier')] = 'Ivoire 90 g'; jl.spec[f('perso', 'Couverture')] = 'Toile rose poudré';
   mk('perso', 'Green Light', 0, { cloth: '#b3d66a', skip: ['Découpe Cricut'] });
   const ce = mk('pro', 'Le Chevalier Errant', 5, { kind: 'Rebind', client: 'Camille', due: dayStr(new Date(Date.now() + 9 * 864e5)) });
   mk('pro', 'Eragon', 7, { kind: 'Rebind', cloth: '#ffb07c' });
@@ -205,6 +211,7 @@ function normSide(sd, side) {
     deliverables: list(sd.deliverables, d.deliverables),
     types: list(sd.types, d.types, (x) => ({ color: isHex(x.color) ? x.color.toLowerCase() : '#8564e8' }))
       .map((t) => (t.name === 'Fanfic' && d.name === 'Bibliothèque perso' ? { ...t, name: 'Perso' } : t)),
+    fields: list(sd.fields, d.fields, (x) => ({ on: !!x.on })),
   };
 }
 
@@ -226,12 +233,17 @@ function normProject(p, sd) {
     ? items(p.deliverables).map((x) => ({ id: String(x.id || hid('x', p.id + x.name)), name: String(x.name), done: !!x.done }))
     : sd.deliverables.map((d) => ({ id: hid('l', p.id + d.name), name: d.name, done: false }));
   const str = (v) => (typeof v === 'string' ? v : '');
+  const spec = {};
+  if (p.spec && typeof p.spec === 'object') for (const k of Object.keys(p.spec)) { const v = str(p.spec[k]).trim(); if (v) spec[String(k)] = v; }
+  const log = (Array.isArray(p.log) ? p.log : []).filter((x) => x && (str(x.text).trim() || str(x.photo)) && +x.at)
+    .map((x) => ({ id: String(x.id || hid('j', p.id + x.at)), at: +x.at, ...(str(x.text).trim() ? { text: str(x.text).trim() } : {}), ...(str(x.photo) ? { photo: str(x.photo) } : {}) }));
   return {
     id: String(p.id), side: p.side, title: String(p.title || '').trim() || 'Sans titre',
     icon: String(p.icon || '').trim() || defaultIcon(String(p.id)),
     cloth: isHex(p.cloth) ? hue(p.cloth) : (p.cover && p.cover.t === 'grad' && GRAD_TO_CLOTH[p.cover.v]) || defaultCloth(String(p.id)),
     cover: normCover(p.cover),
     kind: p.side === 'perso' && p.kind === 'Fanfic' ? 'Perso' : str(p.kind), client: str(p.client), contact: str(p.contact), notes: str(p.notes),
+    spec, log,
     steps, deliverables,
     start: str(p.start), end: str(p.end), endAuto: !!p.endAuto, due: str(p.due),
     archived: !!p.archived, archivedAt: +p.archivedAt || null,
@@ -404,4 +416,29 @@ function daysLeft(iso) {
   if (!iso) return null;
   const a = new Date(iso + 'T00:00'); const b = new Date(); b.setHours(0, 0, 0, 0);
   return Math.round((a - b) / 864e5);
+}
+
+
+/* ---------- Fiche technique ---------- */
+const fieldsOn = (side) => state.sides[side].fields.filter((x) => x.on);
+/* Les valeurs déjà utilisées pour ce champ, les plus récentes d'abord */
+function fieldValues(side, fid, max = 6) {
+  const seen = new Set(); const out = [];
+  state.projects.filter((p) => p.side === side).sort((a, b) => (b.u || 0) - (a.u || 0)).forEach((p) => {
+    const v = (p.spec || {})[fid]; if (!v) return;
+    const k = fold(v); if (seen.has(k)) return; seen.add(k); out.push(v);
+  });
+  return out.slice(0, max);
+}
+
+/* ---------- Journal d'un livre ----------
+   Ce qui s'est passé, daté : les étapes cochées (automatique), le début,
+   la fin, et ce qu'Inès y ajoute (une note, une photo). */
+function journalOf(p) {
+  const out = [];
+  if (p.created) out.push({ at: p.created, kind: 'start', text: 'Livre commencé' });
+  p.steps.forEach((s) => { if (s.done && s.doneAt) out.push({ at: s.doneAt, kind: 'step', text: s.name }); });
+  (p.log || []).forEach((x) => out.push(Object.assign({ kind: 'note' }, x)));
+  if (p.archived && p.archivedAt) out.push({ at: p.archivedAt, kind: 'end', text: 'Terminé et rangé' });
+  return out.sort((a, b) => b.at - a.at);
 }
