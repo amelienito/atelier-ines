@@ -78,6 +78,15 @@ body {
 }
 body.locked { overflow: hidden; }
 button, input, textarea, select { font: inherit; color: inherit; letter-spacing: inherit; }
+/* Safari : pas de style natif sur les boutons et les champs (sauf dates et cases) */
+button { -webkit-appearance: none; appearance: none; border-radius: 0; }
+input:not([type="checkbox"]):not([type="file"]):not([type="date"]), textarea { -webkit-appearance: none; appearance: none; border-radius: 0; }
+/* iPhone et iPad : un champ en dessous de 16 px fait zoomer toute la page au toucher */
+@media (hover: none) {
+  .prop-in, .row-name, .td-free, .add-row input, .td-add input, .notes, .pal-in input, .in:not(.big) { font-size: max(16px, 1rem) !important; }
+}
+/* Appui long sur iPhone/iPad : pas de menu Copier/Partager sur ce qu'on fait glisser */
+[data-sortable] > *, .book, .td-item, .row { -webkit-touch-callout: none; }
 button { background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: inherit; }
 [data-action] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
@@ -589,7 +598,7 @@ body.dense .mxs { margin-top: 2rem; }
 @keyframes fade { from { opacity: 0; } }
 .sheet {
   position: fixed; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: min(40rem, calc(100vw - 2rem)); max-height: min(52rem, calc(100vh - 2.5rem));
+  width: min(40rem, calc(100vw - 2rem)); max-height: min(52rem, calc(100vh - 2.5rem)); max-height: min(52rem, calc(100dvh - 2.5rem));
   display: flex; flex-direction: column; border-radius: 24px; background: var(--sheet); box-shadow: var(--shadow-3); overflow: hidden;
   animation: rise .32s var(--ease) both;
 }
@@ -950,10 +959,11 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
 #music { position: fixed; z-index: 55; left: max(1rem, env(safe-area-inset-left)); bottom: max(1rem, env(safe-area-inset-bottom)); }
 #music[hidden] { display: none; }
 .mu {
+  -webkit-transform: translateZ(0); transform: translateZ(0);
   width: 22.6rem; border-radius: 20px; background: var(--sheet); box-shadow: var(--shadow-3); overflow: hidden;
   transition: width .3s var(--ease);
 }
-.mu-video { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0d0d12; overflow: hidden; }
+.mu-video { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0d0d12; overflow: hidden; -webkit-transform: translateZ(0); transform: translateZ(0); }
 @supports not (aspect-ratio: 1) { .mu-video { height: 11.8rem; } }
 .mu-video iframe, .mu-video > div { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 .mu-body { padding: .9rem 1rem 1rem; }
