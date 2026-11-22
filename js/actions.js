@@ -212,7 +212,13 @@ function applyOrder(kind, ids) {
    ===================================================================== */
 const actions = {
   /* navigation */
-  tab(el) { ui.tab = el.dataset.tab; ui.expanded = null; renderTabbar(); renderMain(); window.scrollTo(0, 0); Haptic.tap(); },
+  tab(el) { ui.tab = el.dataset.tab; LOCAL.tab = ui.tab; saveLocalPrefs(); ui.expanded = null; renderTabbar(); renderMain(); window.scrollTo(0, 0); Haptic.tap(); },
+  dense() {
+    LOCAL.dense = !LOCAL.dense; saveLocalPrefs();
+    ui.expanded = null; applyDense(); renderTop(); renderMain();
+    window.scrollTo({ top: 0, behavior: calm() ? 'auto' : 'smooth' }); Haptic.tap();
+    toast(LOCAL.dense ? 'Tout le tableau sur un écran' : 'Vue détaillée');
+  },
   expand(el) { ui.expanded = ui.expanded === el.dataset.side ? null : el.dataset.side; renderMain(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
   'goto-carnet'() {
     if (innerWidth < 760) { ui.tab = 'carnet'; renderTabbar(); renderMain(); window.scrollTo(0, 0); return; }
@@ -254,7 +260,7 @@ const actions = {
     ui.flash = new Set([p.id]);
     ui.sheet = null;
     commit(() => { state.projects.unshift(p); state.orderU = now(); });
-    if (innerWidth < 700) { ui.tab = p.side; renderTabbar(); renderMain(); }
+    if (innerWidth < 760 && ui.tab !== 'all') { ui.tab = p.side; renderTabbar(); renderMain(); }
     Haptic.tap(); Sound.play('add');
     requestAnimationFrame(() => {
       const card = $(`.book[data-id="${p.id}"]`);

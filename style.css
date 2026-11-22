@@ -340,6 +340,77 @@ body[data-expanded] .book::after { opacity: 0; }
 .rest .pick-chip.on { color: var(--ink); background: none; }
 :root[data-theme="dark"] .rest .pick-chip { background: transparent; }
 
+
+/* =====================================================================
+   TOUT VOIR : le tableau de bord resserré, tout sur un écran
+   ===================================================================== */
+.tb.all-btn { position: relative; }
+.tb.all-btn.on::before { content: ''; position: absolute; left: .35rem; right: .35rem; top: .45rem; bottom: .45rem; background: var(--sun); -webkit-mask: var(--mk2) center / 100% 100% no-repeat; mask: var(--mk2) center / 100% 100% no-repeat; mix-blend-mode: var(--blend); }
+.tb.all-btn > * { position: relative; }
+:root[data-theme="dark"] .tb.all-btn.on { color: #16161f; }
+body.dense .dock { padding-bottom: 1rem; }
+body.dense .board { min-height: 0; }
+body.dense .half { padding: 1.2rem 1.5rem 1.3rem; }
+body.dense .half-head { margin-bottom: .4rem; }
+body.dense .half-name { font-size: 1.5rem; }
+body.dense .half-bar { margin-top: .25rem; }
+body.dense .book { padding: .55rem 1rem .6rem; }
+body.dense .bk-title { font-size: 1rem; }
+body.dense .bk-meta { font-size: .8rem; }
+body.dense .bk-top .due { height: 1.25rem; font-size: .72rem; }
+body.dense .bk-track { margin-top: .4rem; }
+body.dense .bk-track .cells { gap: 2px; }
+body.dense .bk-track .c { width: .66rem; height: .66rem; }
+.due-d { display: none; }
+body.dense .bk-next { margin-top: .35rem; min-height: 1.7rem; gap: .55rem; }
+body.dense .bk-next .box { width: 1.2rem; height: 1.2rem; }
+body.dense .bk-next p { font-size: .87rem; }
+body.dense .sun { height: 1.7rem; font-size: .76rem; }
+body.dense .livr-due { margin-top: .35rem; font-size: .86rem; }
+body.dense .rest { display: none; }
+body.dense .bk-photo { width: 2.3rem; top: .6rem; }
+body.dense .book.with-photo { padding-left: 4rem; }
+body.dense .today { margin: .9rem 0; padding: 1.1rem 1.2rem 1rem; }
+body.dense .td-title { font-size: 1.5rem; }
+body.dense .td-date { margin-top: .2rem; font-size: .84rem; }
+body.dense .td-count b { font-size: 1.5rem; }
+body.dense .td-meter { display: none; }
+body.dense .td-group { margin-top: .65rem; }
+body.dense .td-item { padding: .3rem 0; }
+body.dense .td-txt b { font-size: .92rem; }
+body.dense .td-txt .td-book { display: inline; margin-left: .4rem; font-size: .8rem; }
+body.dense .td-sugg { display: none; }
+body.dense .td-add { margin-top: .7rem; height: 2.5rem; }
+body.dense .td-pick { margin-top: .45rem; }
+body.dense .td-done-toggle { margin-top: .5rem; }
+body.dense .carnet { margin-top: 1.1rem; padding: 1.3rem 2rem 1.5rem; }
+body.dense .cn-top { display: none; }
+body.dense .cn-head { margin-top: 0; gap: 2rem; align-items: center; }
+body.dense .cn-big b { font-size: 4.4rem; }
+body.dense .cn-big small { font-size: 1.9rem; }
+body.dense .cn-cap p { font-size: .95rem; }
+body.dense .week-col { height: 3.6rem; }
+body.dense .code { height: 2rem; margin: 1rem 0 .45rem; }
+body.dense .mxs { margin-top: 2rem; }
+/* Ordi : chaque livre sur deux lignes (titre et cases, puis l'étape suivante) */
+@media (min-width: 760px) {
+  body.dense .book { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: .9rem; align-items: center; }
+  body.dense .bk-top { grid-column: 1; grid-row: 1; flex-wrap: nowrap; min-width: 0; overflow: hidden; }
+  body.dense .bk-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+  body.dense .bk-meta { flex: 0 100 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  body.dense .bk-meta { white-space: nowrap; }
+  body.dense .bk-track { grid-column: 2; grid-row: 1; margin-top: 0; }
+  body.dense .bk-next, body.dense .livr-due, body.dense .book > p.bk-next { grid-column: 1 / -1; }
+  body.dense .bk-photo { display: none; }
+  body.dense .book.with-photo { padding-left: 1rem; }
+  body.dense .due-d { display: inline-flex; flex: none; }
+  body.dense .bk-top .due { display: none; }
+  body.dense .bk-next p { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (min-width: 760px) and (max-width: 1380px) {
+  body.dense .bk-meta { display: none; }
+}
+
 /* =====================================================================
    LA FEUILLE DU JOUR
    ===================================================================== */
@@ -896,7 +967,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
   .tb.search kbd { display: none; }
   .dock { padding: .55rem 0 .9rem; margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; }
   .size { display: none; }
-  body:not([data-tab="today"]) .dock { display: none; }
+  body:not([data-tab="today"]):not([data-tab="all"]) .dock { display: none; }
   .board { display: block; background: none; border-radius: 0; min-height: 0; }
   .half, .today { display: none; }
   body[data-tab="today"] .today { display: block; }
@@ -911,6 +982,16 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
   .book + .book::after { left: .5rem; right: .5rem; }
   .carnet { display: none; margin-top: 0; padding: 1.4rem 1rem 2rem; border-radius: 24px; }
   body[data-tab="carnet"] .carnet { display: block; }
+  body[data-tab="all"] .board { display: flex; flex-direction: column; align-items: stretch; gap: .8rem; }
+  body[data-tab="all"] .today, body[data-tab="all"] .half { display: block; }
+  body[data-tab="all"] .today { order: -1; }
+  body[data-tab="all"] .half { margin: 0 -1rem; padding: 1.1rem 1rem 1.1rem; }
+  body[data-tab="all"] .carnet { display: block; margin-top: .8rem; padding: 1.2rem 1rem 1.3rem; }
+  body[data-tab="all"] .carnet .mxs, body[data-tab="all"] .carnet .week { display: none; }
+  body[data-tab="all"] .dock { display: flex; }
+  body[data-tab="all"] .cn-head { grid-template-columns: auto minmax(0, 1fr); gap: 1rem; }
+  body[data-tab="all"] .cn-big b { font-size: 3.6rem; }
+  body[data-tab="all"] .cn-big small { font-size: 1.5rem; }
   body[data-tab="carnet"] .board { display: none; }
   .cn-head { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
   .cn-big b { font-size: 5.4rem; }
@@ -918,10 +999,10 @@ body.dragging, body.dragging * { cursor: grabbing !important; -webkit-user-selec
   .mx .ttl { min-width: 8.5rem; max-width: 10rem; }
   body[data-expanded] .books { grid-template-columns: minmax(0, 1fr); }
   .tabbar {
-    position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr);
+    position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr);
     padding: .4rem .5rem calc(.4rem + env(safe-area-inset-bottom)); background: var(--sheet); box-shadow: 0 -1px 0 var(--line), 0 -10px 30px -18px rgba(28, 28, 42, .25);
   }
-  .tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 3.4rem; border-radius: 14px; font-size: .78rem; font-weight: 600; color: var(--ink-2); }
+  .tab { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 3.4rem; border-radius: 14px; font-size: .74rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
   .tab .tab-ic { position: relative; display: grid; place-items: center; height: 1.4rem; }
   .tab .tab-n { position: absolute; top: -.2rem; left: calc(50% + .6rem); min-width: 1.1rem; height: 1.1rem; padding: 0 .3rem; border-radius: 999px; background: var(--ink); color: var(--on-ink); font-size: .68rem; font-weight: 700; display: grid; place-items: center; }
   .tab.on { color: var(--ink); }

@@ -16,6 +16,7 @@ Le tableau reprend le croquis d'Inès : la bibliothèque perso à gauche, l'acti
 - **Musique** : la sélection de Music Discovery (`js/music.js`). Rien ne se lance tout seul ; une fois lancée, elle se range en petit dans un coin. Calme, posé ou un peu de tout. Rien n'est écrit dans les données d'Inès. Le bouton se masque dans Réglages.
 - **Sans Internet** : `sw.js` garde une copie de l'atelier et de Pour Inès. En ligne, tout vient toujours du réseau (jamais d'ancienne version).
 - **Réglages** : jour / nuit, couleur de chaque espace, étapes, livrables et types par défaut, carnet et favoris affichés ou non. Sur chaque appareil : taille, vibrations, sons, animations réduites, bouton Musique.
+- **Tout voir** : le bouton de l'en-tête (ordi, iPad) resserre le tableau pour que les deux espaces, aujourd'hui et l'avancement tiennent sur un écran ; le choix est gardé sur l'appareil. Sur iPhone, c'est l'onglet « Tout ».
 - **Confort** : recherche ⌘K / Ctrl+K, annuler ⌘Z / Ctrl+Z (et bouton « Annuler » après chaque action importante).
 
 ## Mémoire

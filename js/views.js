@@ -7,7 +7,7 @@
    La couleur ne sert qu'à montrer ce qui est fait, au surligneur.
    ===================================================================== */
 
-const ui = { sheet: null, pop: null, tab: 'today', expanded: null, flash: null, archFilter: 'tout', setTab: 'apparence', showDone: false };
+const ui = { sheet: null, pop: null, tab: (typeof LOCAL !== 'undefined' && LOCAL.tab) || 'today', expanded: null, flash: null, archFilter: 'tout', setTab: 'apparence', showDone: false };
 
 /* ---------- Icônes ---------- */
 const ICONS = {
@@ -33,6 +33,7 @@ const ICONS = {
   books: '<path d="M4 4h4v16H4zM9 4h4v16H9z"/><path d="m14.5 5.2 3.9-1 3.6 14.6-3.9 1z"/>',
   stack: '<rect x="3" y="15" width="18" height="5" rx="1"/><rect x="5" y="9.5" width="15" height="5" rx="1"/><rect x="3.5" y="4" width="16" height="5" rx="1"/>',
   grid: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/>',
+  dash: '<rect x="3" y="3" width="7.5" height="9" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="5" rx="1.5"/><rect x="3" y="15" width="7.5" height="6" rx="1.5"/><rect x="13.5" y="11" width="7.5" height="10" rx="1.5"/>',
   play: '<path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/>',
   pause: '<rect x="6" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/><rect x="14" y="4.5" width="4" height="15" rx="1" fill="currentColor" stroke="none"/>',
   next: '<path d="M5 5v14l10-7z" fill="currentColor" stroke="none"/><path d="M18 5v14"/>',
@@ -102,7 +103,12 @@ function applyPrefs() {
   }
   root.style.setProperty('--zoom', LOCAL.zoom || 1);
   const meta = $('meta[name="theme-color"]'); if (meta) meta.content = paper;
+  applyDense();
 }
+/* « Tout voir » : le tableau de bord resserré, tout sur un écran.
+   Ordi et iPad : le bouton de l'en-tête. iPhone : l'onglet « Tout ». */
+const isPhone = () => matchMedia('(max-width: 759px)').matches;
+function applyDense() { document.body.classList.toggle('dense', isPhone() ? ui.tab === 'all' : !!LOCAL.dense); }
 
 function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); renderSheet(); renderPop(); if (window.Music) Music.paintLauncher(); }
 
@@ -121,6 +127,7 @@ function renderTop() {
       ${t.total ? `<button class="top-ov" data-action="goto-carnet" title="Voir le carnet">${miniCodeHTML()}<b>${t.pct} %</b><span>accompli</span></button>` : '<span class="grow"></span>'}
       ${t.total ? '<span class="grow"></span>' : ''}
       <button class="tb search" data-action="palette" aria-label="Chercher">${I('search', 18)}<span>Chercher</span><kbd>${isMac ? '⌘' : 'Ctrl '}K</kbd></button>
+      <button class="tb all-btn hide-phone${LOCAL.dense ? ' on' : ''}" data-action="dense" aria-pressed="${!!LOCAL.dense}" title="${LOCAL.dense ? 'Revenir à la vue détaillée' : 'Tout voir sur un seul écran'}">${I('dash', 18)}<span class="lbl">Tout voir</span></button>
       <button class="tb hide-phone" data-action="open-archives">Terminés${na ? `<span class="n">${na}</span>` : ''}</button>
       ${syncBtn()}
       <button class="tb" data-action="open-settings" aria-label="Réglages">${I('sliders', 19)}<span class="lbl">Réglages</span></button>
@@ -215,6 +222,7 @@ function bookHTML(p) {
     line = `<div class="bk-next">
       <button class="box" data-action="quick-done" data-p="${p.id}" data-s="${nx.id}" aria-label="Cocher « ${esc(nx.name)} »"></button>
       <p><span>Ensuite</span><b>${esc(nx.name)}</b></p>
+      ${p.due && !p.archived ? `<span class="due-d">${dueHTML(p)}</span>` : ''}
       <button class="sun${on ? ' on' : ''}" data-action="toggle-today" data-p="${p.id}" data-s="${nx.id}" aria-pressed="${on}" title="${on ? 'Retirer d’aujourd’hui' : 'Prévoir pour aujourd’hui'}">${I('sun', 17)}<span>${on ? 'Aujourd’hui' : 'Pour aujourd’hui'}</span></button>
     </div>`;
   } else {
@@ -376,6 +384,7 @@ function matrixHTML(side) {
 function renderTabbar() {
   const n = todayEntries().filter((e) => !e.done).length;
   const tabs = [
+    ['all', 'Tout', 0, I('dash', 20), ''],
     ['today', 'Aujourd’hui', n, I('sun', 20), ''],
     ['perso', shortName('perso'), activeProjects('perso').length, '<i class="sq"></i>', 's-perso'],
     ['pro', shortName('pro'), activeProjects('pro').length, '<i class="sq"></i>', 's-pro'],
@@ -384,6 +393,7 @@ function renderTabbar() {
   $('#tabbar').innerHTML = tabs.map((t) => `
     <button class="tab ${t[4]}${ui.tab === t[0] ? ' on' : ''}" data-action="tab" data-tab="${t[0]}"><span class="tab-ic">${t[3]}${t[2] ? `<span class="tab-n">${t[2]}</span>` : ''}</span><span class="tab-lbl">${esc(t[1])}</span></button>`).join('');
   document.body.dataset.tab = ui.tab;
+  applyDense();
 }
 
 /* =====================================================================
