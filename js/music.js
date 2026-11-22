@@ -2,15 +2,11 @@
 /* =====================================================================
    ATELIER · musique
    Le lecteur de Music Discovery (la sélection d'Amélien), en petit.
-   Sur l'ordi et l'iPad, il démarre tout seul, tout doucement (volume
-   bas qui monte lentement), puis se range en disque dans un coin.
-   Toujours à portée de main : un toucher pour le voir, pause, suivant,
-   et le × demande s'il faut le faire disparaître (aujourd'hui ou pour
-   de bon). Rien n'est écrit dans les données d'Inès.
+   Il ne fait rien tant qu'on n'a pas appuyé sur « Musique », n'écrit
+   rien dans les données d'Inès, et se range en petit dans un coin.
    ===================================================================== */
 
 const MOODS = [['calme', 'Calme'], ['pose', 'Posé'], ['tout', 'Un peu de tout']];
-const VOLS = [['18', 'Très doux'], ['30', 'Doux'], ['50', 'Normal']];
 const ytId = (lien) => {
   const s = String(lien || '');
   const m = s.match(/[?&]v=([\w-]{11})/) || s.match(/youtu\.be\/([\w-]{11})/) || s.match(/embed\/([\w-]{11})/);
@@ -18,13 +14,11 @@ const ytId = (lien) => {
 };
 
 const Music = {
-  st: { mode: 'off', playing: false, cur: null, err: '', mood: LOCAL.muMood || 'calme', busy: false, ask: false },
-  list: null, yt: null, ready: false, fails: 0, hist: [], back: [], mounted: false, hover: false, fade: null, wantFade: false,
+  st: { mode: 'off', playing: false, cur: null, err: '', mood: LOCAL.muMood || 'pose', busy: false },
+  list: null, yt: null, ready: false, fails: 0, hist: [], back: [], mounted: false,
   site: 'https://amelienito.github.io/music-discovery/',
   src() { return location.hostname.endsWith('github.io') ? '../music-discovery/data.js' : this.site + 'data.js'; },
-  enabled() { return LOCAL.music !== false && LOCAL.muHideDay !== todayStr(); },
-  autoOK() { return LOCAL.muAuto !== false && LOCAL.muPaused !== todayStr() && !isPhone(); },
-  vol() { return +LOCAL.muVol || 30; },
+  enabled() { return LOCAL.music !== false; },
 
   /* ---------- Les morceaux ---------- */
   async load() {
@@ -85,23 +79,12 @@ const Music = {
     });
     return this.yt;
   },
-  target() { return Math.round(this.vol() * Math.min(1, +((this.st.cur || {}).volume) || 1)); },
-  /* Le son arrive doucement : de 0 au volume choisi en quelques secondes */
-  fadeIn() {
-    clearInterval(this.fade);
-    const to = this.target(); let v = 0; const step = Math.max(1, to / 24);
-    try { this.yt.setVolume(0); } catch (e) { /* rien */ }
-    this.fade = setInterval(() => {
-      v = Math.min(to, v + step);
-      try { this.yt.setVolume(Math.round(v)); } catch (e) { /* rien */ }
-      if (v >= to) clearInterval(this.fade);
-    }, 250);
-  },
+  target() { return Math.round(85 * Math.min(1, +((this.st.cur || {}).volume) || 1)); },
   onState(e) {
     const S = window.YT ? YT.PlayerState : {};
     if (e.data === S.PLAYING) {
       this.st.playing = true; this.fails = 0; this.st.err = '';
-      if (this.wantFade) { this.wantFade = false; this.fadeIn(); } else { try { this.yt.setVolume(this.target()); } catch (err) { /* rien */ } }
+      try { this.yt.setVolume(this.target()); } catch (err) { /* rien */ }
     } else if (e.data === S.PAUSED) this.st.playing = false;
     else if (e.data === S.ENDED) { this.st.playing = false; this.next(); return; }
     this.paint();
@@ -111,13 +94,11 @@ const Music = {
     if (this.fails >= 3) { this.st.err = 'YouTube refuse de lire ces morceaux ici pour l’instant.'; this.st.playing = false; this.paint(); return; }
     this.next();
   },
-  async play(m, soft) {
+  async play(m) {
     if (!m) return;
     this.st.cur = m; this.st.err = ''; this.paint();
     try {
       const yt = await this.player();
-      this.wantFade = !!soft;
-      if (soft) try { yt.setVolume(0); } catch (e) { /* rien */ }
       yt.loadVideoById({ videoId: m.yt, startSeconds: +m.debut || 0 });
     } catch (e) {
       this.st.err = 'YouTube ne répond pas pour l’instant.';
@@ -125,45 +106,18 @@ const Music = {
     }
   },
 
-  /* ---------- Démarrage avec l'atelier ---------- */
-  async boot() {
-    if (!this.enabled()) { this.paintLauncher(); return; }
-    this.mount();
-    this.setMode(isPhone() ? 'disc' : 'mini');
-    this.st.busy = true; this.paint();
-    try { await this.load(); } catch (e) { this.st.busy = false; this.setMode('off'); return; }
-    this.st.busy = false;
-    const m = this.pick(); this.hist.push(m); this.st.cur = m; this.paint();
-    if (this.autoOK()) {
-      this.play(m, true);
-      // si le navigateur attend un premier geste, la musique part au premier clic dans l'atelier
-      const kick = (ev) => {
-        if (ev.target && ev.target.closest && ev.target.closest('#music')) return;
-        off();
-        if (!this.st.playing && this.autoOK() && this.st.mode !== 'off') { this.wantFade = true; try { this.yt.playVideo(); } catch (err) { this.play(this.st.cur, true); } }
-      };
-      const off = () => { document.removeEventListener('pointerdown', kick, true); document.removeEventListener('keydown', kick, true); };
-      document.addEventListener('pointerdown', kick, true); document.addEventListener('keydown', kick, true);
-    }
-    // au bout de quelques secondes, le lecteur se range en disque
-    clearTimeout(this.tuck);
-    this.tuck = setTimeout(() => { if (this.st.mode === 'mini' && !this.hover && !this.st.ask) this.setMode('disc'); }, 12000);
-  },
-
   /* ---------- Commandes ---------- */
   launch() {
-    if (!this.enabled()) { delete LOCAL.muHideDay; LOCAL.music = true; saveLocalPrefs(); }
-    if (this.st.mode === 'off') {
-      this.mount(); this.setMode('mini');
-      if (this.st.cur) { this.toggle(); return; }
-      (async () => {
-        this.st.busy = true; this.paint();
-        try { await this.load(); } catch (e) { this.st.busy = false; this.st.err = 'La sélection n’a pas pu être chargée. Réessaie dans un moment.'; this.paint(); return; }
-        this.st.busy = false; this.next();
-      })();
-      return;
-    }
-    this.setMode(this.st.mode === 'disc' ? 'mini' : this.st.mode === 'mini' ? 'full' : 'mini');
+    if (this.st.mode === 'full') { this.setMode('mini'); return; }
+    if (this.st.mode === 'mini') { this.setMode('full'); return; }
+    this.mount();
+    this.setMode('full');
+    if (this.st.cur) { this.toggle(); return; }
+    (async () => {
+      this.st.busy = true; this.paint();
+      try { await this.load(); } catch (e) { this.st.busy = false; this.st.err = 'La sélection n’a pas pu être chargée. Réessaie dans un moment.'; this.paint(); return; }
+      this.st.busy = false; this.next();
+    })();
   },
   next() {
     if (!this.list) return;
@@ -177,31 +131,15 @@ const Music = {
     this.play(m);
   },
   toggle() {
-    if (this.st.playing) {
-      try { this.yt.pauseVideo(); } catch (e) { /* rien */ }
-      LOCAL.muPaused = todayStr(); saveLocalPrefs();          // plus de démarrage tout seul aujourd'hui
-      return;
-    }
-    if (LOCAL.muPaused) { delete LOCAL.muPaused; saveLocalPrefs(); }
+    if (this.st.playing) { try { this.yt.pauseVideo(); } catch (e) { /* rien */ } return; }
     if (this.yt && this.ready && this.st.cur && this.yt.getVideoData && (this.yt.getVideoData() || {}).video_id === this.st.cur.yt) {
       try { this.yt.playVideo(); } catch (e) { /* rien */ }
     } else if (this.st.cur) this.play(this.st.cur);
     else this.next();
   },
-  hide(forGood) {
-    clearInterval(this.fade);
-    try { if (this.yt && this.ready) this.yt.pauseVideo(); } catch (e) { /* rien */ }
-    this.st.playing = false; this.st.ask = false;
-    if (forGood) LOCAL.music = false; else LOCAL.muHideDay = todayStr();
-    saveLocalPrefs();
-    this.setMode('off');
-    if (typeof renderTop === 'function') renderTop();
-    toast(forGood ? 'La musique ne reviendra plus. Elle se remet dans Réglages, Cet appareil.' : 'Plus de musique aujourd’hui. Elle reviendra demain.');
-  },
   stop() {
-    clearInterval(this.fade);
     try { if (this.yt && this.ready) this.yt.pauseVideo(); } catch (e) { /* rien */ }
-    this.st.playing = false; this.st.ask = false;
+    this.st.playing = false;
     this.setMode('off');
   },
   setMood(k) {
@@ -212,7 +150,6 @@ const Music = {
   },
   setMode(mode) {
     this.st.mode = mode;
-    if (mode !== 'full') this.st.ask = false;
     this.paint();
   },
 
@@ -224,7 +161,7 @@ const Music = {
     this.mounted = true;
     const root = $('#music');
     root.innerHTML = `<div class="mu" role="region" aria-label="Musique">
-      <div class="mu-video"><div id="mu-yt"></div><button class="mu-face" data-mu="open" aria-label="Voir le lecteur de musique"><i class="mu-hole"></i></button></div>
+      <div class="mu-video"><div id="mu-yt"></div><button class="mu-face" data-mu="open" aria-label="Agrandir le lecteur"></button></div>
       <div class="mu-body">
         <div class="mu-main">
           <div class="mu-now" data-mu="open"><div><p class="mu-t"></p><p class="mu-a"></p></div>
@@ -235,39 +172,25 @@ const Music = {
             <button class="play" data-mu="toggle" aria-label="Lecture"></button>
             <button class="icon-btn" data-mu="next" aria-label="Morceau suivant">${I('next', 18)}</button>
             <span class="grow mu-full"></span>
-            <button class="icon-btn mu-mini-only" data-mu="disc" aria-label="Ranger dans le coin" title="Ranger dans le coin">${I('min', 18)}</button>
-            <button class="icon-btn" data-mu="ask" aria-label="Faire disparaître la musique" title="Faire disparaître">${I('x', 18)}</button>
+            <button class="icon-btn mu-mini-only" data-mu="open" aria-label="Agrandir le lecteur" title="Agrandir">${I('max', 18)}</button>
+            <button class="icon-btn" data-mu="stop" aria-label="Arrêter la musique" title="Arrêter">${I('x', 18)}</button>
           </div>
           <div class="mu-mood"><div class="seg" role="group" aria-label="Ambiance">${MOODS.map((x) => `<button data-mu="mood" data-k="${x[0]}">${x[1]}</button>`).join('')}</div></div>
           <p class="mu-msg" role="status"></p>
           <div class="mu-foot"><span>La sélection d’Amélien</span><a href="${this.site}" target="_blank" rel="noopener">Music Discovery</a></div>
         </div>
-        <div class="mu-ask">
-          <p><b>Faire disparaître la musique ?</b></p>
-          <div class="mu-ask-btns">
-            <button class="btn small" data-mu="hide-day">Pour aujourd’hui</button>
-            <button class="btn small" data-mu="hide-ever">Pour de bon</button>
-            <button class="btn small quiet" data-mu="keep">Non, la garder</button>
-          </div>
-        </div>
       </div>
     </div>`;
-    root.addEventListener('mouseenter', () => { this.hover = true; });
-    root.addEventListener('mouseleave', () => { this.hover = false; });
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-mu]'); if (!b) return;
       const k = b.dataset.mu;
       e.stopPropagation();
-      if (k === 'open') { if (this.st.mode === 'disc') this.setMode('mini'); else if (this.st.mode === 'mini') this.setMode('full'); return; }
+      if (k === 'open') { if (this.st.mode === 'mini') this.setMode('full'); return; }
       if (k === 'mini') this.setMode('mini');
-      else if (k === 'disc') this.setMode('disc');
       else if (k === 'toggle') this.toggle();
       else if (k === 'next') { this.fails = 0; this.next(); }
       else if (k === 'prev') this.prev();
-      else if (k === 'ask') { this.st.mode = 'full'; this.st.ask = true; this.paint(); }
-      else if (k === 'keep') { this.st.ask = false; this.paint(); }
-      else if (k === 'hide-day') this.hide(false);
-      else if (k === 'hide-ever') this.hide(true);
+      else if (k === 'stop') this.stop();
       else if (k === 'mood') this.setMood(b.dataset.k);
       Haptic.tap();
     });
@@ -277,9 +200,8 @@ const Music = {
     if (this.mounted) {
       root.hidden = this.st.mode === 'off';
       const mu = $('.mu', root);
-      ['disc', 'mini', 'full'].forEach((m) => mu.classList.toggle(m, this.st.mode === m));
+      ['mini', 'full'].forEach((m) => mu.classList.toggle(m, this.st.mode === m));
       mu.classList.toggle('playing', this.st.playing);
-      mu.classList.toggle('asking', this.st.ask);
       const m = this.st.cur;
       $('.mu-t', root).textContent = m ? m.titre : this.st.busy ? 'Un instant…' : 'Musique';
       $('.mu-a', root).textContent = m ? m.artiste + (m.annee ? `, ${m.annee}` : '') : '';

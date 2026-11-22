@@ -687,7 +687,7 @@ function stepsSetHTML() {
     </div>`;
 }
 function deviceSetHTML() {
-  const vol = String(LOCAL.muVol || 30); const mood = LOCAL.muMood || 'calme';
+  const mood = LOCAL.muMood || 'pose';
   return `
     <p class="set-intro">Ces réglages ne valent que pour cet appareil.</p>
     <div class="set-group"><h4>Affichage</h4>
@@ -695,11 +695,8 @@ function deviceSetHTML() {
       ${swRow('dense', !!LOCAL.dense, 'Tout voir sur un écran', 'Le tableau resserré (le bouton Tout voir en haut fait pareil)', true)}
     </div>
     <div class="set-group"><h4>Musique</h4>
-      ${swRow('music', LOCAL.music !== false, 'La musique d’Amélien', 'Le petit lecteur rangé dans le coin', true)}
-      ${LOCAL.music !== false ? `
-      ${swRow('muAuto', LOCAL.muAuto !== false, 'Elle démarre toute seule', 'Tout doucement, à l’ouverture de l’atelier (sur ordi et iPad)', true)}
-      <div class="switch-row"><span><b>Volume</b></span><div class="seg">${VOLS.map((x) => `<button class="${vol === x[0] ? 'on' : ''}" data-action="mu-vol" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>
-      <div class="switch-row"><span><b>Ambiance</b></span><div class="seg">${MOODS.map((x) => `<button class="${mood === x[0] ? 'on' : ''}" data-action="mu-mood" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>` : ''}
+      ${swRow('music', LOCAL.music !== false, 'Bouton Musique', 'La musique d’Amélien, seulement quand tu appuies dessus', true)}
+      ${LOCAL.music !== false ? `<div class="switch-row"><span><b>Ambiance</b></span><div class="seg">${MOODS.map((x) => `<button class="${mood === x[0] ? 'on' : ''}" data-action="mu-mood" data-v="${x[0]}">${x[1]}</button>`).join('')}</div></div>` : ''}
     </div>
     <div class="set-group"><h4>Quand tu coches</h4>
       ${swRow('haptics', LOCAL.haptics, 'Vibrations', 'Un petit retour, sur iPhone et Android', true)}

@@ -14,8 +14,6 @@
   Sync.load();
   renderAll();
   setTimeout(() => document.body.classList.remove('intro'), 1400);
-  /* La musique d'Amélien arrive après l'ouverture, tout doucement */
-  setTimeout(() => { if (window.Music) Music.boot(); }, 1600);
 
   /* Lien de connexion reçu (…#connecter=…) */
   const linkCfg = location.hash.includes('connecter=') ? Link.parse(location.hash) : null;

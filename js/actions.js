@@ -271,10 +271,6 @@ const actions = {
     setTimeout(() => { const i = $(`#field-${side}`); if (i) i.focus(); }, 0);
   },
   'plan-more'(el) { ui.planOpen = ui.planOpen || {}; ui.planOpen[el.dataset.id] = !ui.planOpen[el.dataset.id]; renderSheet(); },
-  'mu-vol'(el) {
-    LOCAL.muVol = +el.dataset.v; saveLocalPrefs(); renderSheet(); Haptic.tap();
-    try { if (Music.yt && Music.ready) Music.yt.setVolume(Music.target()); } catch (e) { /* rien */ }
-  },
   'mu-mood'(el) { Music.setMood(el.dataset.v); renderSheet(); Haptic.tap(); },
   palette() { openPop({ type: 'palette', q: '', sel: 0 }); },
   'pal-run'(el) { const it = ui.pop && ui.pop.items && ui.pop.items[+el.dataset.i]; if (!it) return; ui.pop = null; renderPop(); it.run(); },
@@ -639,7 +635,7 @@ document.addEventListener('change', (e) => {
     if (t.checked && k === 'haptics') Haptic.tap();
     if (t.checked && k === 'sounds') Sound.play('tick');
     if (k === 'dense') { renderTop(); renderMain(); }
-    if (k === 'music') { if (t.checked) { delete LOCAL.muHideDay; saveLocalPrefs(); if (Music.st.mode === 'off') Music.boot(); } else Music.stop(); renderTop(); renderSheet(); }
+    if (k === 'music') { if (!t.checked) Music.stop(); renderTop(); renderSheet(); }
     return;
   }
   if (t.id === 'cover-file' && t.files[0]) {
