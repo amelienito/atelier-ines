@@ -118,6 +118,7 @@ function freshState() {
     prefs: { ...DEFAULT_PREFS }, prefsU: 0,
     projects: [], orderU: 0, deleted: {},
     today: { date: todayStr(), items: [], u: 0 },
+    memo: { items: [], u: 0 },
   };
 }
 
@@ -147,6 +148,7 @@ const looksLikeDemo = (s) => s.seed || s.projects.some((p) => p.demo) || (s.proj
 
 function seedState() {
   const s = freshState();
+  s.memo = { items: [{ id: uid(), text: 'Racheter du fil de lin écru', at: Date.now() }, { id: uid(), text: 'Idée : une couverture marbrée bleu nuit', at: Date.now() }], u: 1 };
   s.seed = true;
   const mk = (side, title, done, o) => {
     const p = buildProject(s, side, title, { start: dayStr(new Date(Date.now() - (12 + done * 2) * 864e5)), ...o });
@@ -181,6 +183,7 @@ function normalize(s) {
     prefs: { ...DEFAULT_PREFS }, prefsU: +s.prefsU || 0,
     projects: [], orderU: +s.orderU || 0, deleted: {},
     today: { date: todayStr(), items: [], u: 0 },
+    memo: { items: [], u: 0 },
   };
   for (const side of SIDES) out.sides[side] = normSide(s.sides && s.sides[side], side);
   const pr = s.prefs && typeof s.prefs === 'object' ? s.prefs : {};
@@ -194,6 +197,12 @@ function normalize(s) {
   out.today.date = typeof t.date === 'string' ? t.date : todayStr();
   out.today.u = +t.u || 0;
   out.today.items = (Array.isArray(t.items) ? t.items : []).map(normTodayItem).filter(Boolean);
+  /* « À penser » : ce qu'on garde en tête, sans date */
+  const mm = s.memo && typeof s.memo === 'object' ? s.memo : {};
+  out.memo.u = +mm.u || 0;
+  out.memo.items = (Array.isArray(mm.items) ? mm.items : [])
+    .filter((x) => x && String(x.text || '').trim())
+    .map((x) => ({ id: String(x.id || hid('m', x.text)), text: String(x.text).trim(), at: +x.at || 0 }));
   return out;
 }
 
@@ -281,6 +290,7 @@ function mergeStates(a, b) {
   const ids = [...base.map((p) => p.id), ...[...map.keys()].filter((id) => !seen.has(id))];
   out.projects = ids.filter((id) => map.has(id) && !(out.deleted[id] && out.deleted[id] >= map.get(id).u)).map((id) => map.get(id));
   if (a.today.u > b.today.u) out.today = a.today;
+  if (a.memo.u > b.memo.u) out.memo = a.memo;
   out.seed = a.seed && b.seed;
   return normalize(out);
 }
@@ -441,4 +451,31 @@ function journalOf(p) {
   (p.log || []).forEach((x) => out.push(Object.assign({ kind: 'note' }, x)));
   if (p.archived && p.archivedAt) out.push({ at: p.archivedAt, kind: 'end', text: 'Terminé et rangé' });
   return out.sort((a, b) => b.at - a.at);
+}
+
+
+/* ---------- De quoi se rendre compte du chemin parcouru ---------- */
+function weekKey(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return dayStr(d); }
+/* La plus belle semaine (lundi à dimanche), en étapes cochées */
+function bestWeek() {
+  const m = new Map();
+  for (const p of state.projects) for (const st of p.steps) if (st.done && st.doneAt) { const k = weekKey(st.doneAt); m.set(k, (m.get(k) || 0) + 1); }
+  let best = 0; for (const v of m.values()) best = Math.max(best, v);
+  return best;
+}
+function weekCount(offset) {
+  const ref = new Date(); ref.setDate(ref.getDate() - 7 * offset); const k = weekKey(ref.getTime());
+  let n = 0; for (const p of state.projects) for (const st of p.steps) if (st.done && st.doneAt && weekKey(st.doneAt) === k) n++;
+  return n;
+}
+/* Les jours de ce mois où elle a coché au moins une étape */
+function activeDaysThisMonth() {
+  const d = new Date(); const set = new Set();
+  for (const p of state.projects) for (const st of p.steps) if (st.done && st.doneAt) { const x = new Date(st.doneAt); if (x.getFullYear() === d.getFullYear() && x.getMonth() === d.getMonth()) set.add(x.getDate()); }
+  return set.size;
+}
+/* Les livres terminés cette année, dans l'ordre */
+function finishedThisYear() {
+  const y = new Date().getFullYear();
+  return state.projects.filter((p) => p.archived && p.archivedAt && new Date(p.archivedAt).getFullYear() === y).sort((a, b) => a.archivedAt - b.archivedAt);
 }

@@ -3,7 +3,7 @@
    ATELIER · musique
    Le lecteur de Music Discovery (la sélection d'Amélien), en petit.
    Il ne fait rien tant qu'on n'a pas appuyé sur « Musique », n'écrit
-   rien dans les données d'Inès, et se range en petit dans un coin.
+   rien dans les données d'Inès, et se range en petit sous la barre d'outils.
    ===================================================================== */
 
 const MOODS = [['calme', 'Calme'], ['pose', 'Posé'], ['tout', 'Un peu de tout']];
@@ -165,22 +165,21 @@ const Music = {
       <div class="mu-video"><div id="mu-yt"></div><button class="mu-face" data-mu="open" aria-label="Agrandir le lecteur"></button></div>
       <div class="mu-body">
         <div class="mu-main">
-          <div class="mu-now" data-mu="open"><div><p class="mu-t"></p><p class="mu-a"></p></div>
-            <button class="icon-btn mu-full" data-mu="mini" aria-label="Réduire le lecteur" title="Réduire">${I('min', 18)}</button></div>
+          <div class="mu-now" data-mu="open"><div><p class="mu-t"></p><p class="mu-a"></p></div></div>
           <p class="mu-note"></p>
           <div class="mu-ctrl">
             <button class="icon-btn mu-full" data-mu="prev" aria-label="Morceau précédent">${I('prev', 18)}</button>
             <button class="play" data-mu="toggle" aria-label="Lecture"></button>
             <button class="icon-btn" data-mu="next" aria-label="Morceau suivant">${I('next', 18)}</button>
-            <span class="grow mu-full"></span>
             <button class="icon-btn mu-mini-only" data-mu="open" aria-label="Agrandir le lecteur" title="Agrandir">${I('max', 18)}</button>
+            <button class="icon-btn mu-full" data-mu="mini" aria-label="Réduire le lecteur" title="Réduire">${I('min', 18)}</button>
             <button class="icon-btn" data-mu="stop" aria-label="Arrêter la musique" title="Arrêter">${I('x', 18)}</button>
           </div>
           <div class="mu-mood"><div class="seg" role="group" aria-label="Ambiance">${MOODS.map((x) => `<button data-mu="mood" data-k="${x[0]}">${x[1]}</button>`).join('')}</div></div>
-          <p class="mu-msg" role="status"></p>
           <div class="mu-foot"><span>La sélection d’Amélien</span><a href="${this.site}" target="_blank" rel="noopener">Music Discovery</a></div>
         </div>
       </div>
+      <p class="mu-msg" role="status"></p>
     </div>`;
     root.addEventListener('click', (e) => {
       const b = e.target.closest('[data-mu]'); if (!b) return;

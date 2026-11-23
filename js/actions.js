@@ -121,9 +121,9 @@ async function connectChoice(remote) {
   return 'keep';
 }
 function openSettings(tab, side) {
-  ui.setTab = SET_ALIAS[tab] || tab || 'affichage';
   if (side) ui.setSide = side;
   openSheet({ type: 'settings' });
+  if (tab === 'memoire') setTimeout(() => { const el = $('#set-sync'); if (el) el.scrollIntoView({ block: 'start', behavior: 'auto' }); }, 40);
 }
 function toggleTheme() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -142,6 +142,7 @@ function setStepDone(pid, sid, value, el) {
   const nv = value === undefined ? !st.done : value;
   if (nv === st.done) return;
   const before = phase(p); const pt = FX.at(el);
+  const pct0 = progress(p); const best0 = bestWeek(); const wk0 = weekCount(0);
   let outcome = null;
   if (nv) ui.flash = new Set([pid, sid, ...state.today.items.filter((it) => it.stepId === sid).map((it) => it.id)]);
   commit(() => {
@@ -159,7 +160,20 @@ function setStepDone(pid, sid, value, el) {
     }, 260);
   } else renderPop();
   if (outcome === 'archive') { if (ui.sheet && ui.sheet.type === 'page' && ui.sheet.id === p.id) closeSheet(); celebrateDone(p); }
+  else if (nv && !outcome) milestone(p, pct0, best0, wk0, pt);
   checkDayDone();
+}
+/* Les petits paliers : mi-parcours, dernière étape, plus belle semaine.
+   Discrets, jamais deux à la fois. */
+function milestone(p, pct0, best0, wk0, pt) {
+  const pr = progress(p); const left = p.steps.filter((s) => !s.done).length; let msg = '';
+  if (pr.total >= 4 && pct0.done * 2 < pct0.total && pr.done * 2 >= pr.total) msg = `Mi-parcours pour « ${p.title} »`;
+  else if (p.steps.length >= 3 && left === 1) msg = `Plus qu’une étape pour « ${p.title} »`;
+  else if (best0 >= 5 && wk0 === best0 && weekCount(0) > best0 && LOCAL.bestToast !== weekKey(Date.now())) {
+    LOCAL.bestToast = weekKey(Date.now()); saveLocalPrefs();
+    msg = 'Ta plus belle semaine jusqu’ici';
+  }
+  if (msg) setTimeout(() => { toast(msg); FX.burst(pt, [colOf(p), '#f2cf3a'], 10, 0.8); }, 380);
 }
 function celebrateDone(p) {
   setTimeout(() => {
@@ -203,6 +217,9 @@ function applyOrder(kind, ids) {
     const side = kind.slice(7); const arr = state.sides[side].fields; const moved = sortBy(arr);
     if (moved.length !== arr.length || same(moved, arr)) return;
     commit(() => { state.sides[side].fields = moved; state.sidesU = now(); });
+  } else if (kind === 'memo') {
+    const moved = sortBy(state.memo.items); if (moved.length !== state.memo.items.length || same(moved, state.memo.items)) return;
+    commit(() => { state.memo.items = moved; state.memo.u = now(); });
   } else if (kind.startsWith('tpl-')) {
     const [, side, key] = kind.split('-'); const arr = state.sides[side][key]; const moved = sortBy(arr);
     if (moved.length !== arr.length || same(moved, arr)) return;
@@ -226,10 +243,43 @@ const actions = {
   expand(el) { ui.expanded = ui.expanded === el.dataset.side ? null : el.dataset.side; renderMain(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
   'goto-carnet'() {
     if (innerWidth < 760) { ui.tab = 'carnet'; renderTabbar(); renderMain(); window.scrollTo(0, 0); return; }
-    if (state.prefs.tables === false) { commit(() => { state.prefs.tables = true; state.prefsU = now(); }); }
     const el = $('#carnet'); if (el) el.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth', block: 'start' });
   },
   music() { if (window.Music) Music.launch(); },
+  theme() { toggleTheme(); Haptic.tap(); },
+  'pick-color'(el) { openPop({ type: 'colors', side: el.dataset.side }); },
+  'spec-edit'() { ui.specEdit = !ui.specEdit; renderSheet(); Haptic.tap(); },
+  'quote-off'() { LOCAL.quoteOff = state.today.date; saveLocalPrefs(); renderMain(); },
+  'memo-toggle'() { ui.memoOpen = !ui.memoOpen; renderMain(); },
+  'memo-add'() {
+    const inp = $('#memo-input'); const v = inp.value.trim(); if (!v) { inp.focus(); return; }
+    const id = uid(); ui.flash = new Set([id]);
+    commit(() => { state.memo.items.push({ id, text: v, at: now() }); state.memo.u = now(); });
+    Haptic.tap(); Sound.play('add');
+    setTimeout(() => { const i = $('#memo-input'); if (i) i.focus(); }, 0);
+  },
+  'memo-done'(el) {
+    const id = el.dataset.id; const li = el.closest('.memo-item'); const pt = FX.at(el);
+    if (li) { el.classList.add('on', mkv(id)); li.classList.add('leave'); }
+    Haptic.tap(); Sound.play('tick'); FX.burst(pt, ['#f2cf3a', '#f2cf3a'], 6, 0.7);
+    setTimeout(() => {
+      commit(() => { state.memo.items = state.memo.items.filter((x) => x.id !== id); state.memo.u = now(); });
+      toast('C’est réglé', { action: 'Annuler', onAction: () => Undo.undo() });
+    }, calm() ? 0 : 420);
+  },
+  'memo-remove'(el) {
+    commit(() => { state.memo.items = state.memo.items.filter((x) => x.id !== el.dataset.id); state.memo.u = now(); });
+    toast('Retiré', { action: 'Annuler', onAction: () => Undo.undo() });
+  },
+  'memo-today'(el) {
+    const it = state.memo.items.find((x) => x.id === el.dataset.id); if (!it) return;
+    const id = uid(); ui.flash = new Set([id]);
+    commit(() => {
+      state.memo.items = state.memo.items.filter((x) => x.id !== it.id); state.memo.u = now();
+      state.today.items.push({ id, free: true, text: it.text, done: false }); state.today.u = now();
+    });
+    Haptic.tap(); Sound.play('add'); FX.burst(FX.at(el), ['#f2cf3a'], 6, 0.7);
+  },
   'close-sheet'() { closeSheet(); },
   'close-pop'() { closePop(); },
   'open-project'(el) { if (ui.pop) { ui.pop = null; renderPop(); } openSheet({ type: 'page', id: el.dataset.id }); },
@@ -238,7 +288,6 @@ const actions = {
   'open-settings'(el) { openSettings(el.dataset.tab, el.dataset.side); },
   'open-picker'() { openSheet({ type: 'picker' }); },
   'arch-filter'(el) { ui.archFilter = el.dataset.f; renderSheet(); },
-  'set-tab'(el) { ui.setTab = el.dataset.tab; renderSheet(); const sc = $('.sheet .set-body'); if (sc) sc.scrollTop = 0; },
   'set-side'(el) { ui.setSide = el.dataset.side; renderSheet(); Haptic.tap(); },
   'np-spec'() { const m = ui.sheet; m.specOpen = !m.specOpen; renderSheet(); },
   'draft-spec-pick'(el) { const m = ui.sheet; m.draft.spec = m.draft.spec || {}; m.draft.spec[el.dataset.f] = el.dataset.v; renderSheet(); Haptic.tap(); },
@@ -475,7 +524,7 @@ const actions = {
     toast('Cet appareil est connecté');
   },
   'start-blank'() { state = freshState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); },
-  'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. Pour les effacer : Réglages, Mémoire et synchro, Repartir de zéro.'); },
+  'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. Pour les effacer : Réglages, Synchro et sauvegardes, Repartir de zéro.'); },
   async 'copy-link'() {
     try { await navigator.clipboard.writeText(Link.make()); toast('Lien copié : ouvre-le sur l’autre appareil'); Haptic.tap(); } catch (e) { toast('Copie impossible ici : utilise « Envoyer… »'); }
   },
@@ -552,13 +601,15 @@ document.addEventListener('click', (e) => {
   fn(el, e);
 }, true);
 
+/* Réglages : le volet « Revenir en arrière… » reste ouvert si on l'a ouvert */
+document.addEventListener('toggle', (e) => { if (e.target.classList && e.target.classList.contains('set-more')) ui.setMore = e.target.open; }, true);
 /* Favoris : un petit retour au toucher */
 document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('[data-fav]')) Haptic.tap(); });
 /* Si quelque chose casse (navigateur ancien…), on le dit au lieu de rester muet */
 addEventListener('error', (e) => { if (e && e.message && !/Script error/.test(e.message)) toast('Petit souci : ' + e.message.slice(0, 90)); });
 
 /* Modifications en direct dans les champs (noms, notes…) */
-const EDIT_ATTRS = ['pfield', 'stepName', 'livrName', 'spaceName', 'tpl', 'type', 'free', 'setting', 'spec', 'field'];
+const EDIT_ATTRS = ['pfield', 'stepName', 'livrName', 'spaceName', 'tpl', 'type', 'free', 'setting', 'spec', 'field', 'memo'];
 function applyEdit(t) {
   const d = t.dataset; const v = t.isContentEditable ? t.textContent : t.value;
   if (d.pfield) {
@@ -603,6 +654,12 @@ function applyEdit(t) {
     const [side, id] = d.field.split('|'); const f = state.sides[side].fields.find((x) => x.id === id);
     const val = v.trim(); if (!f || !val || f.name === val) return;
     commit(() => { f.name = val; state.sidesU = now(); }, { sheet: false, pop: false });
+  } else if (d.memo) {
+    const it = state.memo.items.find((x) => x.id === d.memo); if (!it) return;
+    const val = v.trim();
+    if (!val) { commit(() => { state.memo.items = state.memo.items.filter((x) => x.id !== it.id); state.memo.u = now(); }); return; }
+    if (it.text === val) return;
+    commit(() => { it.text = val; state.memo.u = now(); }, { sheet: false, pop: false });
   } else if (d.setting === 'user') {
     const val = v.trim(); if (state.user === val) return;
     commit(() => { state.user = val; state.userU = now(); }, { sheet: false, pop: false });
@@ -696,5 +753,5 @@ document.addEventListener('keydown', (e) => {
     return;
   }
   if (e.key === 'Enter' && !e.shiftKey && t.dataset && t.dataset.enter) { e.preventDefault(); actions[t.dataset.enter](t); return; }
-  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.pg-title, .row-name, .half-name, .td-free, .prop-in, .in')) { e.preventDefault(); t.blur(); }
+  if (e.key === 'Enter' && !e.shiftKey && t.matches && t.matches('.pg-title, .row-name, .half-name, .td-free, .prop-in, .in, .memo-in, .tchip-in')) { e.preventDefault(); t.blur(); }
 });
