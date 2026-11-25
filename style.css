@@ -237,6 +237,20 @@ body.intro .c.d::before { animation: draw .5s var(--ease) both; animation-delay:
 .fav-ic.own { background: var(--ink); }
 .fav-ic.own::before { content: none; }
 .fav-ic.own svg { width: 1.75rem; height: 1.75rem; margin: -.875rem 0 0 -.875rem; }
+@media (min-width: 760px) and (max-width: 1279px) {
+  .dock { gap: .3rem; }
+  .fav { gap: .35rem; padding: 0 .65rem 0 .25rem; font-size: .86rem; }
+  .dock-sep { margin: 0 .15rem; }
+}
+/* Écran moyen : la musique garde son disque, sans le mot */
+@media (min-width: 760px) and (max-width: 1179px) {
+  .mu-launch { padding-right: .25rem; }
+  .mu-launch .mu-lbl { display: none; }
+}
+@media (min-width: 760px) and (max-width: 1099px) {
+  .dock { gap: .25rem; }
+  .fav { padding-right: .55rem; }
+}
 .dock-sep { width: 1px; height: 1.4rem; background: var(--line-2); margin: 0 .35rem; flex: none; }
 .size { display: inline-flex; align-items: center; flex: none; height: 2.3rem; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--line-2); }
 .size button { height: 100%; padding: 0 .65rem; font-weight: 650; font-size: .76rem; color: var(--ink-2); border-radius: 999px; }

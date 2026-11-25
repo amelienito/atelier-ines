@@ -166,6 +166,7 @@ function renderSyncState() {
 const POUR_INES_IC = '<svg viewBox="0 0 28 28" aria-hidden="true"><path d="M14.3 7.6h-1.7a3.95 3.95 0 0 0 0 7.9h1.7z" fill="currentColor"/><path d="M14.3 7.6v12.8M17.7 7.6v12.8M12.6 7.6h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>';
 const FAVS = [
   ['Pour Inès', 'pour-ines.html', ''],
+  ['Angle Ref', 'https://angleref.com/', 'angleref.com'],
   ['Cosmos', 'https://www.cosmos.so/', 'cosmos.so'],
   ['Drive', 'https://drive.google.com/', 'drive.google.com'],
   ['Enbooken', 'https://enbooken.com/', 'enbooken.com'],
@@ -181,7 +182,7 @@ function dockHTML() {
     return `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav>${ic}${esc(n)}</a>`;
   }).join('');
   const mu = LOCAL.music !== false && !isPhone()
-    ? `<button class="fav mu-launch${window.Music && Music.st.playing ? ' playing' : ''}" data-action="music" title="La musique d’Amélien, pour travailler">${'<span class="cd" aria-hidden="true"></span>'}Musique</button>` : '';
+    ? `<button class="fav mu-launch${window.Music && Music.st.playing ? ' playing' : ''}" data-action="music" title="La musique d’Amélien, pour travailler" aria-label="Musique">${'<span class="cd" aria-hidden="true"></span>'}<span class="mu-lbl">Musique</span></button>` : '';
   const size = `<div class="size hide-phone" role="group" aria-label="Taille de l’affichage"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div>`;
   return `<nav class="dock" aria-label="Outils">${favs}${favs && mu ? '<span class="dock-sep"></span>' : ''}${mu}<span class="grow"></span>${size}</nav>`;
 }
