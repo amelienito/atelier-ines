@@ -117,7 +117,50 @@ function applyDense() {
   if (isPhone() && window.Music && Music.st.mode !== 'off') Music.stop();
 }
 
-function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); renderSheet(); renderPop(); if (window.Music) Music.paintLauncher(); }
+function renderAll() { applyPrefs(); renderTop(); renderMain(); renderTabbar(); renderSheet(); renderPop(); if (window.Music) Music.paintLauncher(); fitScreen(); }
+
+/* ---------- S'adapter à l'écran réel ----------
+   « Tout voir » : la page se règle pour que les deux espaces, aujourd'hui et
+   l'avancement tiennent pile dans la hauteur de l'écran (sans descendre sous
+   80 %). La barre de favoris : noms entiers s'il y a la place, sinon icônes. */
+function fitDense() {
+  const root = document.documentElement;
+  const on = document.body.classList.contains('dense') && !isPhone();
+  if (!on) { if (root.style.getPropertyValue('--fit')) root.style.removeProperty('--fit'); return; }
+  const target = () => { const el = $('.cn-sides') || $('.carnet'); return el ? el.getBoundingClientRect().bottom + window.scrollY + 14 : 0; };
+  let f = parseFloat(root.style.getPropertyValue('--fit')) || 1;
+  for (let i = 0; i < 4; i++) {
+    const need = target(); if (!need) return;
+    let next = f;
+    if (need > innerHeight) next = f * innerHeight / need;
+    else if (need < innerHeight - 40 && f < 1) next = Math.min(1, f * innerHeight / need);
+    next = Math.max(0.8, Math.min(1, next));
+    if (Math.abs(next - f) < 0.004) break;
+    f = next; root.style.setProperty('--fit', f.toFixed(3));
+  }
+  if (f >= 0.999) root.style.removeProperty('--fit');
+}
+function fitDock() {
+  const d = $('.dock'); if (!d) return;
+  const over = () => d.scrollWidth > d.clientWidth + 1;
+  d.classList.add('measure'); d.classList.remove('tight', 'scrolls', 'from-l', 'at-end');
+  const favs = [...d.querySelectorAll('.fav')]; favs.forEach((f) => f.classList.remove('ic'));
+  if (over()) d.classList.add('tight');
+  /* les noms se replient un par un, en partant de la fin ; Pour Inès en dernier */
+  const order = favs.filter((f) => !f.classList.contains('main')).reverse().concat(favs.filter((f) => f.classList.contains('main')));
+  for (const f of order) { if (!over()) break; f.classList.add('ic'); }
+  if (over()) { d.classList.add('scrolls'); paintDockFade(d); }
+  void d.offsetWidth; requestAnimationFrame(() => d.classList.remove('measure'));
+}
+function paintDockFade(d) {
+  d.classList.toggle('from-l', d.scrollLeft > 4);
+  d.classList.toggle('at-end', d.scrollLeft + d.clientWidth >= d.scrollWidth - 4);
+}
+function fitScreen() { fitDense(); fitDock(); }
+let fitRaf = 0;
+window.addEventListener('resize', () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(fitScreen); });
+document.addEventListener('scroll', (e) => { if (e.target.classList && e.target.classList.contains('dock') && e.target.classList.contains('scrolls')) paintDockFade(e.target); }, true);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitScreen());
 
 /* =====================================================================
    EN-TÊTE
@@ -141,6 +184,7 @@ function renderTop() {
       <button class="tb" data-action="open-settings" aria-label="Réglages">${I('sliders', 19)}<span class="lbl">Réglages</span></button>
     </div>
     ${dockHTML()}`;
+  fitDock();
 }
 function miniCodeHTML() {
   const t = stats();
@@ -179,10 +223,10 @@ function dockHTML() {
     const ic = d
       ? `<span class="fav-ic" data-l="${n[0]}"><img src="https://www.google.com/s2/favicons?domain=${d}&sz=64" alt="" loading="lazy" onerror="this.remove()"></span>`
       : `<span class="fav-ic own" style="color:var(--on-ink)">${POUR_INES_IC}</span>`;
-    return `<a class="fav" href="${u}" target="_blank" rel="noopener" data-fav>${ic}${esc(n)}</a>`;
+    return `<a class="fav${u === 'pour-ines.html' ? ' main' : ''}" href="${u}" target="_blank" rel="noopener" data-fav title="${esc(n)}" aria-label="${esc(n)}">${ic}<span class="fav-lbl">${esc(n)}</span></a>`;
   }).join('');
   const mu = LOCAL.music !== false && !isPhone()
-    ? `<button class="fav mu-launch${window.Music && Music.st.playing ? ' playing' : ''}" data-action="music" title="La musique d’Amélien, pour travailler" aria-label="Musique">${'<span class="cd" aria-hidden="true"></span>'}<span class="mu-lbl">Musique</span></button>` : '';
+    ? `<button class="fav mu-launch${window.Music && Music.st.playing ? ' playing' : ''}" data-action="music" title="La musique d’Amélien, pour travailler" aria-label="Musique">${'<span class="cd" aria-hidden="true"></span>'}<span class="fav-lbl">Musique</span></button>` : '';
   const size = `<div class="size hide-phone" role="group" aria-label="Taille de l’affichage"><button data-action="zoom" data-d="-1" aria-label="Plus petit">A</button><button data-action="zoom" data-d="1" aria-label="Plus grand">A</button></div>`;
   return `<nav class="dock" aria-label="Outils">${favs}${favs && mu ? '<span class="dock-sep"></span>' : ''}${mu}<span class="grow"></span>${size}</nav>`;
 }
@@ -195,6 +239,7 @@ function renderMain() {
   $('#main').innerHTML = `
     <section class="board">${halfHTML('pro')}${todayHTML()}${halfHTML('perso')}</section>
     ${carnetHTML()}`;
+  fitScreen();
 }
 
 function halfHTML(side) {

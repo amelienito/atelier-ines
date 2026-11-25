@@ -532,7 +532,7 @@ const actions = {
     const steps = [0.9, 1, 1.1, 1.2, 1.32]; const cur = steps.indexOf(LOCAL.zoom || 1);
     const nx = steps[Math.max(0, Math.min(steps.length - 1, (cur < 0 ? 1 : cur) + +el.dataset.d))];
     if (nx === (LOCAL.zoom || 1)) { Haptic.tap(true); return; }
-    LOCAL.zoom = nx; saveLocalPrefs(); applyPrefs(); Haptic.tap();
+    LOCAL.zoom = nx; saveLocalPrefs(); applyPrefs(); fitScreen(); Haptic.tap();
     toast(`Affichage à ${Math.round(nx * 100)} %`);
   },
   'toggle-done'() { ui.showDone = !ui.showDone; renderMain(); Haptic.tap(); },
