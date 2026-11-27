@@ -834,9 +834,26 @@ function memoryHTML(m) {
       <div class="btn-row">${on ? '<button class="btn quiet" data-action="disconnect">Déconnecter cet appareil</button>' : ''}<button class="btn quiet danger" data-action="reset">Repartir de zéro</button></div>
     </div></details>`;
 }
+/* Mettre l'atelier sur l'écran d'accueil : les gestes changent selon le navigateur.
+   Safari iPhone (iOS 26) : Partager est rangé derrière « ••• » ; Chrome : l'option est tout en bas, sous les siennes. */
+function homeGuide() {
+  const ua = navigator.userAgent; const iphone = /iPhone|iPod/.test(ua);
+  const dots = '<span class="dots-key" aria-label="les trois points">•••</span>';
+  const share = `${I('share', 17)}<b>Partager</b>`;
+  if (/FxiOS|EdgiOS|OPiOS|FBAN|FBAV|Instagram|Line\/|GSA\//.test(ua)) return { other: true };
+  if (/CriOS/.test(ua)) return { steps: [`Touche ${I('share', 17)} dans la barre d’adresse`, 'Descends sous les options de Chrome', 'Touche <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b>'] };
+  if (!iphone) return { steps: [`Touche ${share} en haut à droite`, 'Choisis <b>Sur l’écran d’accueil</b>', 'Puis <b>Ajouter</b>'] };
+  return { steps: [`Touche ${dots} à côté de l’adresse, puis ${share}`, 'Descends jusqu’à <b>Sur l’écran d’accueil</b>', 'Puis <b>Ajouter</b>'] };
+}
+function homeStepsHTML() {
+  const g = homeGuide();
+  if (g.other) return `<p class="lead wl-other">Ce navigateur ne sait pas le faire : copie le lien, puis colle-le dans <b>Safari</b>.</p>
+    <div class="btn-col"><button class="btn" data-action="copy-link">${I('link', 16)}Copier le lien</button></div>`;
+  return `<ol class="wl-steps">${g.steps.map((x) => `<li><span>${x}</span></li>`).join('')}</ol>`;
+}
 function installTipHTML() {
   if (!Device.ios || Device.app()) return '';
-  return `<div class="tip"><b>Ajoute l’atelier à l’écran d’accueil</b>Dans Safari : Partager, puis « Sur l’écran d’accueil ». Il s’ouvrira comme une appli${Sync.enabled() ? ', déjà connecté,' : ''} et ne sera jamais effacé.${Sync.enabled() ? '' : ' Une fois dedans, colle le lien de connexion.'}</div>`;
+  return `<div class="tip"><b>Ajoute l’atelier à l’écran d’accueil</b>Il s’ouvrira comme une appli${Sync.enabled() ? ', déjà connecté,' : ''} et ne sera jamais effacé.${Sync.enabled() ? '' : ' Une fois dedans, colle le lien de connexion.'}${homeStepsHTML()}</div>`;
 }
 function historyListHTML(m) {
   const h = m.hist;
@@ -861,8 +878,8 @@ function welcomeHTML(m) {
     return `<div class="sheet-scroll welcome scroller"><h1 class="logo" role="img" aria-label="Parinès"></h1>${welcomeCode(true)}
       <h2>${m.count ? `${plural(m.count, 'livre retrouvé', 'livres retrouvés')}` : 'C’est connecté'}</h2>
       <p class="lead">Dernière chose : mets l’atelier sur l’écran d’accueil. Il s’ouvrira comme une appli, déjà connecté, et ${dev} ne l’effacera jamais.</p>
-      <ol class="wl-steps"><li>Touche ${I('share', 17)} <b>Partager</b></li><li>Choisis <b>Sur l’écran d’accueil</b></li><li>Puis <b>Ajouter</b></li></ol>
-      <div class="btn-col"><button class="btn primary big" data-action="close-sheet">C’est fait</button></div></div>`;
+      ${homeStepsHTML()}
+      <div class="btn-col"><button class="btn primary big" data-action="close-sheet">${homeGuide().other ? 'Fermer' : 'C’est fait'}</button></div></div>`;
   }
   if (m.link && m.busy) {
     return `<div class="sheet-scroll welcome scroller"><h1 class="logo" role="img" aria-label="Parinès"></h1>${welcomeCode('busy')}
