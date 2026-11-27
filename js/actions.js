@@ -128,6 +128,31 @@ async function connectChoice(remote) {
   }
   return 'keep';
 }
+/* Rien de personnel sur cet appareil (ni livre à soi, ni note) : le lien peut tout prendre en ligne sans rien demander */
+function localIsEmpty() {
+  const real = state.projects.filter((p) => !p.demo && !(state.seed && SEED_TITLES.includes(p.title)));
+  const notes = state.seed ? 0 : ((state.memo && state.memo.items.length) || 0) + ((state.today && state.today.items.length) || 0);
+  return !real.length && !notes;
+}
+/* Ouverture du lien sur un appareil vierge : une seule étape, faite pour elle */
+async function linkConnect(cfg) {
+  if (!ui.sheet || ui.sheet.type !== 'welcome') openSheet({ type: 'welcome', link: true, cfg });
+  const m = ui.sheet; m.busy = true; m.msg = ''; m.err = false; renderSheet();
+  const err = await Sync.connect(cfg, async (remote) => (remote || looksLikeDemo(state) ? 'remote' : 'keep'));
+  if (ui.sheet !== m) { if (!err) linked(); return; }
+  m.busy = false;
+  if (err) { m.msg = err; m.err = true; renderSheet(); return; }
+  linked(m);
+}
+/* Après une connexion réussie : sur iPhone / iPad, on montre la dernière étape (l'écran d'accueil) */
+function linked(m) {
+  Link.pin(); renderAll();
+  if (navigator.userActivation ? navigator.userActivation.isActive : true) Haptic.tap(true);
+  const n = state.projects.length;
+  if (m && Device.ios && !Device.app()) { m.step = 'home'; m.count = n; renderSheet(); return; }
+  if (m) closeSheet();
+  toast(n ? `Connecté : ${plural(n, 'livre retrouvé', 'livres retrouvés')}` : 'Connecté : tout ce que tu feras ici sera enregistré en ligne');
+}
 function openSettings(tab, side) {
   if (side) ui.setSide = side;
   openSheet({ type: 'settings' });
@@ -520,16 +545,18 @@ const actions = {
     m.msg = 'Connexion…'; m.err = false; renderSheet();
     const err = await Sync.connect(cfg, connectChoice);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
-    Haptic.tap(true);
-    if (m.type === 'welcome') closeSheet(); else { m.msg = 'Connecté. Tout est maintenant enregistré en ligne.'; m.err = false; renderSheet(); }
+    if (m.type === 'welcome') { linked(m); return; }
+    Link.pin(); Haptic.tap(true);
+    m.msg = 'Connecté. Tout est maintenant enregistré en ligne.'; m.err = false; renderSheet();
     toast('Connecté : tout est enregistré en ligne');
   },
   async 'welcome-connect'() {
-    const m = ui.sheet; m.msg = 'Connexion…'; m.err = false; renderSheet();
+    const m = ui.sheet;
+    if (localIsEmpty()) { linkConnect(m.cfg); return; }
+    m.msg = 'Connexion…'; m.err = false; renderSheet();
     const err = await Sync.connect(m.cfg, connectChoice);
     if (err) { m.msg = err; m.err = true; renderSheet(); return; }
-    Haptic.tap(true); closeSheet();
-    toast('Cet appareil est connecté');
+    linked(m);
   },
   'start-blank'() { state = freshState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); },
   'start-demo'() { state = seedState(); saveLocal(); Backup.schedule(); closeSheet(); renderAll(); toast('Voici quelques exemples. Pour les effacer : Réglages, Synchro et sauvegardes, Repartir de zéro.'); },
@@ -549,10 +576,10 @@ const actions = {
     try { inp.value = (await navigator.clipboard.readText()).trim(); } catch (e) { inp.focus(); toast('Appuie longuement dans le champ, puis « Coller »'); return; }
     if (inp.value) actions.connect();
   },
-  async 'share-link'() { try { await navigator.share({ title: 'Atelier', text: 'Ouvre ce lien pour connecter cet appareil à l’atelier', url: Link.make() }); } catch (e) { /* annulé */ } },
+  async 'share-link'() { try { await navigator.share({ title: 'Atelier', text: 'Ouvre ce lien : l’atelier s’y retrouve tout seul.', url: Link.make() }); } catch (e) { /* annulé */ } },
   async disconnect() {
     if (!(await ask('Déconnecter cet appareil ?', 'Les données restent ici et en ligne. Il faudra rouvrir le lien de connexion pour le reconnecter.', 'Déconnecter'))) return;
-    Sync.disconnect(); renderSheet();
+    Sync.disconnect(); Link.unpin(); renderSheet();
   },
   async 'sync-now'() { await Sync.refresh(true); await Sync.flush(); renderSyncState(); },
   async 'load-history'(el) {

@@ -835,11 +835,8 @@ function memoryHTML(m) {
     </div></details>`;
 }
 function installTipHTML() {
-  const ua = navigator.userAgent;
-  const ios = /iPhone|iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-  if (!ios || standalone) return '';
-  return '<div class="tip"><b>Ajoute l’atelier à l’écran d’accueil</b>Dans Safari : Partager, puis « Sur l’écran d’accueil ». Il s’ouvrira comme une appli et l’iPhone ne l’effacera jamais. Une fois dedans, rouvre le lien de connexion.</div>';
+  if (!Device.ios || Device.app()) return '';
+  return `<div class="tip"><b>Ajoute l’atelier à l’écran d’accueil</b>Dans Safari : Partager, puis « Sur l’écran d’accueil ». Il s’ouvrira comme une appli${Sync.enabled() ? ', déjà connecté,' : ''} et ne sera jamais effacé.${Sync.enabled() ? '' : ' Une fois dedans, colle le lien de connexion.'}</div>`;
 }
 function historyListHTML(m) {
   const h = m.hist;
@@ -852,13 +849,26 @@ function historyListHTML(m) {
 }
 
 /* ---------- Bienvenue / lien de connexion ---------- */
-function welcomeCode() {
-  const seq = [1, 1, 1, 1, 0, 0, 2, 2, 2, 2, 2, 0];
-  return `<div class="wl-code"><span class="cells">${seq.map((v, i) => `<i class="c${v ? ' d m' + (1 + (i % 4)) + (v === 1 ? ' s-perso' : ' s-pro') : ''}" style="--i:${i}"></i>`).join('')}</span></div>`;
+function welcomeCode(mode) {
+  const seq = mode ? [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2] : [1, 1, 1, 1, 0, 0, 2, 2, 2, 2, 2, 0];
+  return `<div class="wl-code${mode === 'busy' ? ' busy' : ''}"><span class="cells">${seq.map((v, i) => `<i class="c${v ? ' d m' + (1 + (i % 4)) + (v === 1 ? ' s-perso' : ' s-pro') : ''}" style="--i:${i}"></i>`).join('')}</span></div>`;
 }
 function welcomeHTML(m) {
   const msg = m.msg ? `<p class="msg ${m.err ? 'err' : 'ok'}">${esc(m.msg)}</p>` : '';
   const paste = navigator.clipboard && navigator.clipboard.readText;
+  if (m.link && m.step === 'home') {
+    const dev = /iPhone|iPod/.test(navigator.userAgent) ? 'l’iPhone' : 'l’iPad';
+    return `<div class="sheet-scroll welcome scroller"><h1 class="logo" role="img" aria-label="Parinès"></h1>${welcomeCode(true)}
+      <h2>${m.count ? `${plural(m.count, 'livre retrouvé', 'livres retrouvés')}` : 'C’est connecté'}</h2>
+      <p class="lead">Dernière chose : mets l’atelier sur l’écran d’accueil. Il s’ouvrira comme une appli, déjà connecté, et ${dev} ne l’effacera jamais.</p>
+      <ol class="wl-steps"><li>Touche ${I('share', 17)} <b>Partager</b></li><li>Choisis <b>Sur l’écran d’accueil</b></li><li>Puis <b>Ajouter</b></li></ol>
+      <div class="btn-col"><button class="btn primary big" data-action="close-sheet">C’est fait</button></div></div>`;
+  }
+  if (m.link && m.busy) {
+    return `<div class="sheet-scroll welcome scroller"><h1 class="logo" role="img" aria-label="Parinès"></h1>${welcomeCode('busy')}
+      <h2>Connexion à l’atelier…</h2>
+      <p class="lead">Tes livres arrivent.</p></div>`;
+  }
   if (m.link) {
     return `<div class="sheet-scroll welcome scroller"><h1 class="logo" role="img" aria-label="Parinès"></h1>${welcomeCode()}
       <h2>Connecter cet appareil ?</h2>

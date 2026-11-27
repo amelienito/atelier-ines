@@ -90,13 +90,15 @@ function deviceName() {
    https://…/atelier-ines/#connecter=<code> : le code contient le compte,
    le dépôt et le jeton. La partie après # n'est jamais envoyée au serveur. */
 const Link = {
-  make() {
+  code() {
     const c = Sync.cfg;
-    return `${location.origin}${location.pathname}#connecter=${b64url(JSON.stringify({ o: c.owner, r: c.repo, t: c.token }))}`;
+    return c.owner === DEFAULT_OWNER && c.repo === DEFAULT_REPO ? c.token : b64url(JSON.stringify({ o: c.owner, r: c.repo, t: c.token }));
   },
+  make() { return `${location.origin}${location.pathname}#connecter=${this.code()}`; },
   parse(text) {
     text = String(text || '').trim();
     const m = text.match(/connecter=([A-Za-z0-9_-]+)/);
+    if (m && /^(github_pat_|ghp_)/.test(m[1])) return { owner: DEFAULT_OWNER, repo: DEFAULT_REPO, token: m[1] };
     if (m) {
       try { const j = JSON.parse(unb64url(m[1])); if (j.t) return { owner: j.o || DEFAULT_OWNER, repo: j.r || DEFAULT_REPO, token: j.t }; } catch (e) { /* rien */ }
       return null;
@@ -104,7 +106,36 @@ const Link = {
     if (/^(github_pat_|ghp_)[A-Za-z0-9_]+$/.test(text)) return { owner: DEFAULT_OWNER, repo: DEFAULT_REPO, token: text };
     return null;
   },
+  /* iPhone, iPad, Safari du Mac : l'icône ajoutée à l'écran d'accueil (ou au Dock) a sa propre
+     mémoire, vide. On glisse la connexion dans son adresse de départ : elle s'ouvre déjà connectée. */
+  pin() {
+    if (!Sync.enabled() || !Device.carries()) return;
+    const url = this.make(); const dir = location.origin + location.pathname.replace(/[^/]*$/, '');
+    const man = {
+      name: 'Atelier — Inès', short_name: 'Atelier', start_url: url, scope: dir, display: 'standalone',
+      background_color: '#f3f3f0', theme_color: '#f3f3f0',
+      icons: [{ src: dir + 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' }, { src: dir + 'icon-512.png', sizes: '512x512', type: 'image/png' }],
+    };
+    const el = document.querySelector('link[rel="manifest"]');
+    if (el) el.href = 'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(man));
+    if (Device.ios) history.replaceState(null, '', location.pathname + location.search + '#connecter=' + this.code());
+  },
+  unpin() {
+    const el = document.querySelector('link[rel="manifest"]'); if (el) el.href = 'manifest.json';
+    if (location.hash.includes('connecter=')) history.replaceState(null, '', location.pathname + location.search);
+  },
 };
+
+const Device = (() => {
+  const ua = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+  const macSafari = !ios && /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|Edg|Firefox|OPR/.test(ua);
+  return {
+    ios, macSafari,
+    app: () => !!(navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)),
+    carries() { return (ios || macSafari) && !this.app(); },
+  };
+})();
 
 /* ---------- Couvertures photo ---------- */
 const Covers = {

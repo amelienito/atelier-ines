@@ -18,27 +18,37 @@
   /* Lien de connexion reçu (…#connecter=…) */
   const linkCfg = location.hash.includes('connecter=') ? Link.parse(location.hash) : null;
   if (location.hash.includes('connecter=')) history.replaceState(null, '', location.pathname + location.search);
+
+  /* Filet de sécurité : si le stockage principal a été vidé, on reprend la copie de secours */
+  const rescue = had ? Promise.resolve() : IDB.get('state').then((j) => {
+    if (!j || localStorage.getItem(LS_KEY)) return;
+    try {
+      const s = JSON.parse(j);
+      if (s && Array.isArray(s.projects) && s.projects.length) {
+        replaceState(s);
+        if (ui.sheet && ui.sheet.type === 'welcome' && !ui.sheet.link) closeSheet();
+        toast('Tes données ont été retrouvées sur cet appareil ✓');
+      }
+    } catch (e) { /* rien */ }
+  }).catch(() => {});
+
   if (linkCfg) {
-    if (Sync.enabled() && Sync.cfg.token === linkCfg.token) toast('Cet appareil est déjà connecté ✓');
-    else openSheet({ type: 'welcome', link: true, cfg: linkCfg });
+    if (Sync.enabled()) {
+      /* déjà relié : rien à faire. L'icône de l'écran d'accueil rouvre toujours ce lien, en silence. */
+      if (Sync.cfg.token === linkCfg.token) { if (!Device.app() && !Device.ios) toast('Cet appareil est déjà connecté ✓'); }
+      else if (!Device.app()) openSheet({ type: 'welcome', link: true, cfg: linkCfg });
+    } else {
+      /* appareil vierge : on connecte tout de suite, sans rien demander */
+      openSheet({ type: 'welcome', link: true, cfg: linkCfg, busy: true });
+      rescue.then(() => {
+        if (localIsEmpty()) return linkConnect(linkCfg);
+        if (ui.sheet && ui.sheet.link) { ui.sheet.busy = false; renderSheet(); }
+      });
+    }
   } else if (!had && !Sync.enabled()) {
     openSheet({ type: 'welcome' });
   }
-
-  /* Filet de sécurité : si le stockage principal a été vidé, on reprend la copie de secours */
-  if (!had) {
-    IDB.get('state').then((j) => {
-      if (!j || localStorage.getItem(LS_KEY)) return;
-      try {
-        const s = JSON.parse(j);
-        if (s && Array.isArray(s.projects) && s.projects.length) {
-          replaceState(s);
-          if (ui.sheet && ui.sheet.type === 'welcome' && !ui.sheet.link) closeSheet();
-          toast('Tes données ont été retrouvées sur cet appareil ✓');
-        }
-      } catch (e) { /* rien */ }
-    });
-  }
+  Link.pin();
 
   /* Demande au navigateur de ne jamais effacer les données de l'atelier */
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
