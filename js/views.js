@@ -316,7 +316,7 @@ function quoteHTML(force) {
   const q = quoteOfDay(force); if (!q) return '';
   return `<figure class="td-quote">
     <blockquote>${esc(q.q)}</blockquote>
-    <figcaption>${esc(q.w)}, ${esc(q.a)}</figcaption>
+    <figcaption>${esc(q.w)}${q.a ? `, ${esc(q.a)}` : ''}</figcaption>
     <button class="x" data-action="quote-off" aria-label="Masquer la citation pour aujourd’hui">${I('x', 13)}</button>
   </figure>`;
 }
