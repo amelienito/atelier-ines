@@ -115,6 +115,14 @@ async function connectChoice(remote) {
     return yes ? 'remote' : 'keep';
   }
   if (demo && local.length) {
+    /* Jamais de « tout effacer » si des vrais livres sont là : on ne retire que les exemples */
+    const real = local.filter((p) => !p.demo && !(state.seed && SEED_TITLES.includes(p.title)));
+    if (real.length) {
+      if (local.some((p) => p.demo) && await ask('Retirer les livres d’exemple ?', `${real.length > 1 ? `Tes ${real.length} livres restent` : 'Ton livre reste'}, seuls les exemples partent.`, 'Retirer les exemples', { no: 'Tout garder' })) {
+        commit(() => { const t = now(); for (const p of state.projects) if (p.demo) state.deleted[p.id] = t; state.projects = state.projects.filter((p) => !p.demo); });
+      }
+      return 'keep';
+    }
     const yes = await ask('Cet appareil contient les exemples', 'Avant de tout mettre en ligne, repartir d’un atelier vide ?', 'Repartir de zéro', { no: 'Garder les exemples' });
     return yes ? 'remote' : 'keep';
   }
