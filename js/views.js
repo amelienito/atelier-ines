@@ -468,8 +468,8 @@ function matrixHTML(side) {
       <td class="dt">${esc(shortDate(p.start))}</td><td class="dt">${esc(shortDate(p.end))}</td><td class="pc">${pctOf(p)} %</td>
     </tr>`;
   }).join('');
-  return `<div class="mx-wrap s-${side}" aria-label="${esc(sd.name)}"><div class="mx-scroll"><table class="mx">
-    <thead><tr><th></th>${m.cols.map((c) => `<th class="v"><span title="${esc(c.name)}">${esc(c.name)}</span></th>`).join('')}<th class="v dt"><span>Début</span></th><th class="v dt"><span>Fin</span></th><th class="v dt"><span>Fait</span></th></tr></thead>
+  return `<div class="mx-wrap s-${side}" aria-label="${esc(sd.name)}"><div class="mx-scroll"><table class="mx" style="--n:${m.cols.length}">
+    <thead><tr><th class="ttl-h"></th>${m.cols.map((c) => `<th class="v"><span title="${esc(c.name)}">${esc(c.name)}</span></th>`).join('')}<th class="v dt"><span>Début</span></th><th class="v dt"><span>Fin</span></th><th class="v dt pch"><span>Fait</span></th></tr></thead>
     <tbody>${rows}</tbody></table></div></div>`;
 }
 

@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    ATELIER · citations du jour
-   Une phrase courte, toujours avec son œuvre, et son autrice ou auteur quand on le connaît.
+   Une phrase courte, toujours avec son œuvre et son autrice ou auteur.
    Elles apparaissent un jour sur deux environ, et quand la journée est
    bouclée. Pour en ajouter : une ligne de plus, sur le même modèle.
    ===================================================================== */
@@ -86,8 +86,6 @@ const QUOTES = [
   { q: 'A dead flower does not mean it never bloomed.', w: 'Crimson Rivers', a: 'bizarrestars' },
   { q: 'Love is like a flower that can bloom anywhere.', w: 'Crimson Rivers', a: 'bizarrestars' },
   { q: 'You’re a fucking dream, do you know that?', w: 'The Auction', a: 'LovesBitca' },
-  { q: 'We’re an unlikely pair, Granger. But I’m glad I have you.', w: 'Until the Ink Runs Dry', a: '' },
-  { q: 'I love you too much. It’s reckless.', w: 'The Fear of Letting Go', a: '' },
   { q: 'I’m mental about you too.', w: 'All the Young Dudes', a: 'MsKingBean89' },
   { q: '« I loved him », Remus said. « But he wasn’t you. »', w: 'All the Young Dudes', a: 'MsKingBean89' },
   { q: '« Oi! Hands off my man. »', w: 'All the Young Dudes', a: 'MsKingBean89' },
@@ -97,7 +95,6 @@ const QUOTES = [
   { q: 'You want me? I’m here. I’m right fucking here, love.', w: 'Crimson Rivers', a: 'bizarrestars' },
   { q: 'The bar is in hell, and I frequently play limbo with the devil.', w: 'Crimson Rivers', a: 'bizarrestars' },
   { q: 'You wanna love me for the rest of your life?', w: 'Indestructible', a: 'whoknows' },
-  { q: 'I think you’re the love of my life, and you think I’m the traitor.', w: 'The Horcrux Hunt', a: '' },
   { q: 'There is no me without you.', w: 'Fourth Wing', a: 'Rebecca Yarros' },
   { q: 'Some broken things stay broken.', w: 'The Prisoner’s Throne', a: 'Holly Black' },
   { q: 'If I am to have you, I want all of you.', w: 'The Cycle of Deities', a: 'Kelsey Wolfe' },
