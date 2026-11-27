@@ -73,7 +73,7 @@ function isTyping() { const a = document.activeElement; return !!a && a !== docu
 function openSheet(m) {
   blurActive();
   $('#sheet-root').classList.remove('closing');
-  if (ui.pop && ui.pop.type !== 'celebrate') ui.pop = null;
+  if (ui.pop && ui.pop.type !== 'celebrate' && ui.pop.type !== 'finished') ui.pop = null;
   ui.sheet = m;
   renderSheet(); renderPop();
 }
@@ -93,7 +93,7 @@ function closePop() {
   blurActive();
   const root = $('#pop-root'); const m = ui.pop;
   ui.pop = null;
-  if (m && m.type === 'ask' && m.resolve) m.resolve(false);
+  if (m && m.type === 'ask' && m.resolve) m.resolve(m.dismiss !== undefined ? m.dismiss : false);
   if ($('.pop', root) && !calm()) {
     root.classList.add('closing');
     setTimeout(() => { root.classList.remove('closing'); if (!ui.pop) renderPop(); }, 180);
@@ -108,11 +108,24 @@ function ask(title, text, ok, opts = {}) {
 async function connectChoice(remote) {
   const local = state.projects; const demo = looksLikeDemo(state);
   if (remote && remote.projects.length) {
-    if (!local.length || state.seed) return 'keep';
-    const yes = await ask(demo ? 'Cet appareil contient les exemples' : `Cet appareil a déjà ${plural(local.length, 'livre', 'livres')}`,
-      `En ligne, il y a ${plural(remote.projects.length, 'livre', 'livres')}. Prendre seulement ceux en ligne ? Sinon, les deux sont réunis.`,
-      'Prendre ceux en ligne', { no: 'Tout réunir' });
-    return yes ? 'remote' : 'keep';
+    /* On récupère toujours l'atelier en ligne. Les livres qu'il connaît déjà se mettent à jour tout seuls
+       (la modification la plus récente gagne) ; les exemples partent sans bruit. La seule question :
+       les livres qui n'existent que sur cet appareil. Fermer sans répondre les garde. */
+    if (state.seed) return 'keep';
+    const known = new Set([...remote.projects.map((p) => p.id), ...Object.keys(remote.deleted || {})]);
+    const isDemo = (p) => p.demo || SEED_TITLES.includes(p.title) && demo;
+    const only = local.filter((p) => !isDemo(p) && !known.has(p.id));
+    const drop = local.filter((p) => isDemo(p) && !known.has(p.id));
+    if (only.length) {
+      const one = only.length === 1;
+      const names = only.slice(0, 3).map((p) => `« ${p.title} »`).join(', ') + (only.length > 3 ? ` et ${only.length - 3} autres` : '');
+      const add = await ask('Ton atelier arrive sur cet appareil',
+        `Les ${plural(remote.projects.length, 'livre', 'livres')} en ligne vont s’afficher ici. ${one ? 'Un livre n’existe' : `${only.length} livres n’existent`} que sur cet appareil : ${names}. ${one ? 'L’ajouter' : 'Les ajouter'} à l’atelier ?`,
+        one ? 'L’ajouter' : 'Les ajouter', { no: 'Non, seulement ceux en ligne', dismiss: true });
+      if (!add) drop.push(...only);
+    }
+    if (drop.length) { const out = new Set(drop); state.projects = state.projects.filter((p) => !out.has(p)); saveLocal(); }
+    return 'keep';
   }
   if (demo && local.length) {
     /* Jamais de « tout effacer » si des vrais livres sont là : on ne retire que les exemples */
@@ -210,8 +223,9 @@ function milestone(p, pct0, best0, wk0, pt) {
 }
 function celebrateDone(p) {
   setTimeout(() => {
-    Haptic.tap(true); Sound.play('fete'); FX.rain([colOf(p), colOf(p), '#f2cf3a']);
-    toast(`« ${p.title} » est terminé`, { action: 'Annuler', onAction: () => Undo.undo() });
+    Haptic.tap(true); Horn.play(); FX.rain([colOf(p), colOf(p), '#f2cf3a']);
+    setTimeout(() => FX.rain([colOf(p), '#f2cf3a', '#ffffff']), 680);
+    openPop({ type: 'finished', id: p.id });
   }, 150);
 }
 function checkDayDone() {
@@ -316,6 +330,7 @@ const actions = {
   'close-sheet'() { closeSheet(); },
   'close-pop'() { closePop(); },
   'open-project'(el) { if (ui.pop) { ui.pop = null; renderPop(); } openSheet({ type: 'page', id: el.dataset.id }); },
+  'finished-undo'() { closePop(); Undo.undo(); },
   'open-celebrate'(el) { openPop({ type: 'celebrate', id: el.dataset.id }); },
   'open-archives'() { openSheet({ type: 'archives' }); },
   'open-settings'(el) { openSettings(el.dataset.tab, el.dataset.side); },
@@ -619,7 +634,7 @@ const actions = {
     toast('Tout est effacé', { action: 'Annuler', onAction: () => Undo.undo() });
   },
   'ask-yes'() { const m = ui.pop; if (m && m.resolve) { const r = m.resolve; m.resolve = null; closePop(); r(true); } },
-  'ask-no'() { closePop(); },
+  'ask-no'() { const m = ui.pop; if (m && m.resolve) { const r = m.resolve; m.resolve = null; closePop(); r(false); } else closePop(); },
 };
 
 /* =====================================================================
@@ -726,6 +741,7 @@ document.addEventListener('change', (e) => {
     LOCAL[k] = t.checked; saveLocalPrefs(); applyPrefs();
     if (t.checked && k === 'haptics') Haptic.tap();
     if (t.checked && k === 'sounds') Sound.play('tick');
+    if (t.checked && k === 'horn') Horn.play();
     if (k === 'dense') { renderTop(); renderMain(); }
     if (k === 'music') { if (!t.checked) Music.stop(); renderTop(); renderSheet(); }
     return;

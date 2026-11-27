@@ -1303,3 +1303,64 @@ body.dense .memo:not(.open) .memo-tg .n::after { content: ' ›'; }
 }
 body.calm *, body.calm *::before, body.calm *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; }
 body.calm .playing .cd { animation: none; }
+
+/* =====================================================================
+   AFFINAGE : confort de lecture, finitions, réactions au toucher
+   ===================================================================== */
+/* Textes secondaires un peu plus lisibles, surtout en sombre sur les fonds teintés */
+:root { --ink-3: #7b7c8a; }
+:root[data-theme="dark"] { --ink-2: #b6b7c4; --ink-3: #8b8c9c; --dot: rgba(236, 236, 241, .09); }
+
+/* Les titres se répartissent sur leurs lignes, les paragraphes évitent les mots orphelins */
+.bk-title, .td-txt b, .celebrate h2, .welcome h2, .half-name { text-wrap: balance; }
+.bk-next p, .lead, .celebrate > p, .cn-note, .week-sum, .tip, .quote q { text-wrap: pretty; }
+.bk-next p { line-height: 1.35; }
+.bk-meta, .half-sub, .td-txt .td-book, .bk-n { letter-spacing: .006em; }
+
+/* Tout voir : un titre ne finit plus en « … », il passe sur deux lignes si besoin */
+@media (min-width: 760px) {
+  body.dense .bk-top { flex-wrap: wrap; overflow: visible; row-gap: 0; }
+  body.dense .bk-title { white-space: normal; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; }
+  body.dense .bk-meta { flex: none; overflow: visible; }
+}
+
+/* Le carnet : les points du papier s'effacent sous le texte et restent sur les bords */
+.carnet { background-image: none; isolation: isolate; }
+.carnet::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background-image: radial-gradient(circle at 1px 1px, var(--dot) 1px, transparent 1.4px);
+  background-size: 22px 22px; background-position: 11px 11px;
+  -webkit-mask-image: radial-gradient(125% 115% at 30% 40%, transparent 30%, #000 82%);
+  mask-image: radial-gradient(125% 115% at 30% 40%, transparent 30%, #000 82%);
+}
+
+/* Les barres : un rail net, un trait de surligneur qui reste dedans, un souffle entre les deux espaces */
+.gauge { box-shadow: inset 0 0 0 1px var(--line); }
+.gauge i::before { top: -1px; bottom: -1px; }
+.gauge i + i::before { left: 2px; }
+.mini-bar i { transition: none; }
+
+/* Les cases : la prochaine étape se signale sans crier */
+.c { box-shadow: inset 0 0 0 1px var(--line-2); }
+.c.n { box-shadow: inset 0 0 0 1.5px var(--ink-2); }
+
+/* Au toucher : chaque élément cède un peu sous le doigt, puis revient */
+.box, .sun, .icon-btn, .x, .tab, .tchip, .fchip { transition-property: box-shadow, background, color, transform; transition-duration: .15s; transition-timing-function: var(--ease); }
+.box:active { transform: scale(.88); }
+.sun:active, .icon-btn:active, .x:active { transform: scale(.92); }
+.tab:active, .tchip:active, .fchip:active { transform: scale(.96); }
+.book:active { background: var(--hover); }
+
+/* Un livre fini */
+.celebrate.finished { text-align: center; padding: 2.2rem 1.9rem 1.7rem; }
+.celebrate.finished .cel-mark { display: flex; justify-content: center; }
+.celebrate.finished .cel-mark .cells { justify-content: center; max-width: 19rem; }
+.celebrate.finished .c.d::before { animation: draw .42s var(--ease) both; animation-delay: calc(var(--i, 0) * 55ms + 120ms); }
+.celebrate.finished h2 { font-size: 1.9rem; margin-top: 1.3rem; }
+.celebrate.finished h2 span { margin-top: .45rem; font-size: 1.05rem; color: var(--ink); }
+.celebrate.finished > p { max-width: 22rem; margin: .7rem auto 0; }
+.celebrate.finished .cel-foot { justify-content: center; margin-top: 1.5rem; }
+.closing .pop-finished { animation: sink .2s ease both; }
+.pop-finished { animation: fin-in .55s cubic-bezier(.2, 1.35, .4, 1) both; }
+@keyframes fin-in { from { opacity: 0; transform: translate(-50%, calc(-50% + 18px)) scale(.9); } }
+@media (prefers-reduced-motion: reduce) { .pop-finished, .celebrate.finished .c.d::before { animation: none; } }

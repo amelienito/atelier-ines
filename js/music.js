@@ -6,6 +6,8 @@
    rien dans les données d'Inès, et se range en petit sous la barre d'outils.
    ===================================================================== */
 
+/* L'atelier garde le calme : pas d'électro, de metal ni de sons agressifs (Music Discovery, lui, garde tout) */
+const LOUD = /[ée]lectr|metal|(^|[^a-zà-ÿ])rage|hyperpop|drill|hardcore|agressi|col[èe]re|punk|perreo|glitch|fr[ée]n[ée]ti|hi-nrg|club|house|phonk|trap/i;
 const MOODS = [['calme', 'Calme'], ['pose', 'Posé'], ['tout', 'Un peu de tout']];
 const ytId = (lien) => {
   const s = String(lien || '');
@@ -28,7 +30,7 @@ const Music = {
     const txt = await r.text();
     // le fichier de Music Discovery déclare « const MORCEAUX = [...] » : on le lit à part
     const arr = new Function(txt + '\n;return (typeof MORCEAUX !== "undefined") ? MORCEAUX : [];')();
-    this.list = arr.map((m) => Object.assign({}, m, { yt: ytId(m.lien) })).filter((m) => m.yt);
+    this.list = arr.map((m) => Object.assign({}, m, { yt: ytId(m.lien) })).filter((m) => m.yt && !LOUD.test([m.style].concat(m.tags || []).join(' ')));
     return this.list;
   },
   pool() {

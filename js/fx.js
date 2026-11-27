@@ -7,7 +7,7 @@
 
 /* Réglages propres à cet appareil (non synchronisés) */
 const LOCAL = (() => {
-  const d = { haptics: true, sounds: false, calm: false, collapsed: {}, music: true };
+  const d = { haptics: true, sounds: false, horn: true, calm: false, collapsed: {}, music: true };
   try { return { ...d, ...JSON.parse(localStorage.getItem(LS_LOCAL) || '{}') }; } catch (e) { return d; }
 })();
 function saveLocalPrefs() { try { localStorage.setItem(LS_LOCAL, JSON.stringify(LOCAL)); } catch (e) { /* rien */ } }
@@ -58,6 +58,43 @@ const Sound = {
     } catch (e) { /* rien */ }
   },
 };
+
+/* ---------- Le klaxon de fin de livre ----------
+   Le même que la table de tri de Music Discovery : deux coups brefs, puis le long.
+   Préparé au premier toucher (sinon l'iPhone refuse de jouer). Il baisse un instant
+   la musique qui joue à côté au lieu de la couper. */
+const Horn = {
+  ctx: null, buf: null, loading: null,
+  load() {
+    if (this.loading) return this.loading;
+    try { this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return Promise.resolve(); }
+    this.loading = fetch('son/klaxon.mp3').then((r) => r.arrayBuffer())
+      .then((b) => new Promise((ok, ko) => this.ctx.decodeAudioData(b, ok, ko)))
+      .then((buf) => { this.buf = buf; }).catch(() => { this.loading = null; });
+    return this.loading;
+  },
+  play() {
+    if (LOCAL.horn === false) return;
+    try {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'transient'; } catch (e) { /* rien */ }
+      this.load();
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+      const go = () => {
+        if (!this.buf) return;
+        const c = this.ctx; const t = c.currentTime + 0.02;
+        [[0, 0.26], [0.34, 0.26], [0.68, null]].forEach(([dec, dur]) => {
+          const s = c.createBufferSource(); s.buffer = this.buf;
+          const g = c.createGain(); g.gain.value = 0.7;
+          if (dur) { g.gain.setValueAtTime(0.7, t + dec + dur - 0.03); g.gain.linearRampToValueAtTime(0, t + dec + dur); }
+          s.connect(g); g.connect(c.destination);
+          s.start(t + dec); if (dur) s.stop(t + dec + dur + 0.01);
+        });
+      };
+      if (this.buf) go(); else if (this.loading) this.loading.then(go);
+    } catch (e) { /* rien */ }
+  },
+};
+document.addEventListener('pointerdown', () => { if (LOCAL.horn !== false) Horn.load(); }, { once: true, capture: true });
 
 /* ---------- Petits traits de surligneur ----------
    Quand on coche : quelques traits de la couleur de l'espace s'échappent.

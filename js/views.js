@@ -184,11 +184,11 @@ function renderTop() {
       <button class="tb" data-action="open-settings" aria-label="Réglages">${I('sliders', 19)}<span class="lbl">Réglages</span></button>
     </div>
     ${dockHTML()}`;
-  fitDock();
+  fitDock();  tweenBars();
 }
 function miniCodeHTML() {
   const t = stats();
-  return `<span class="mini-bar" aria-hidden="true"><i class="m2" style="width:${t.pct}%"></i></span>`;
+  return `<span class="mini-bar" aria-hidden="true"><i class="m2" data-k="mini" style="width:${t.pct}%"></i></span>`;
 }
 function syncBtn() {
   const map = {
@@ -240,6 +240,17 @@ function renderMain() {
     <section class="board">${halfHTML('pro')}${todayHTML()}${halfHTML('perso')}</section>
     ${carnetHTML()}`;
   fitScreen();
+  tweenBars();
+}
+/* Les barres glissent de leur ancienne valeur à la nouvelle, au lieu de sauter */
+const BARS = new Map();
+function tweenBars() {
+  $$('[data-k]').forEach((el) => {
+    const w = parseFloat(el.style.width); if (isNaN(w)) return;
+    const k = el.dataset.k; const prev = BARS.get(k); BARS.set(k, w);
+    if (prev === undefined || Math.abs(prev - w) < 0.1 || calm() || !el.animate) return;
+    el.animate([{ width: prev + '%' }, { width: w + '%' }], { duration: 700, easing: 'cubic-bezier(.2,.8,.25,1)' });
+  });
 }
 
 function halfHTML(side) {
@@ -381,10 +392,10 @@ function carnetHTML() {
     <div class="cn-sum">
       <div class="cn-main">
         <p class="cn-line"><b class="cn-pct">${t.pct} %</b><span>de ce qu’il y a à faire est fait</span></p>
-        <div class="gauge big" role="progressbar" aria-valuenow="${t.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de l’atelier">${sides.map((x) => `<i class="m2 s-${x.s}" style="width:${t.total ? (x.t.done / t.total * 100).toFixed(2) : 0}%"></i>`).join('')}</div>
+        <div class="gauge big" role="progressbar" aria-valuenow="${t.pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de l’atelier">${sides.map((x) => `<i class="m2 s-${x.s}" data-k="g-${x.s}" style="width:${t.total ? (x.t.done / t.total * 100).toFixed(2) : 0}%"></i>`).join('')}</div>
         <div class="cn-sides">${sides.map((x) => `
           <div class="cn-side s-${x.s}"><span class="cn-side-n"><i class="sq"></i>${esc(state.sides[x.s].name)}</span>
-            <span class="gauge"><i class="m3" style="width:${x.t.pct}%"></i></span>
+            <span class="gauge"><i class="m3" data-k="s-${x.s}" style="width:${x.t.pct}%"></i></span>
             <b>${x.t.pct} %</b><small>${x.t.done} sur ${x.t.total}</small></div>`).join('')}
         </div>
         ${shelfHTML()}
@@ -510,7 +521,7 @@ function renderSheet() {
 function renderPop() {
   const root = $('#pop-root'); const m = ui.pop;
   if (!m) { root.innerHTML = ''; root.dataset.key = ''; lockBody(); return; }
-  const kinds = { ask: askHTML, celebrate: celebrateHTML, palette: paletteHTML, colors: colorsHTML };
+  const kinds = { ask: askHTML, celebrate: celebrateHTML, finished: finishedHTML, palette: paletteHTML, colors: colorsHTML };
   const html = kinds[m.type] ? kinds[m.type](m) : '';
   if (!html) { ui.pop = null; root.innerHTML = ''; root.dataset.key = ''; lockBody(); return; }
   const key = sheetKey(m);
@@ -788,6 +799,7 @@ function deviceSetHTML() {
     <div class="tgls">
       ${t('haptics', 'Vibrations', LOCAL.haptics)}
       ${t('sounds', 'Sons', LOCAL.sounds)}
+      ${t('horn', 'Klaxon quand un livre est fini', LOCAL.horn !== false)}
       ${t('calm', 'Moins d’animations', LOCAL.calm)}
       ${isPhone() ? '' : t('music', 'Bouton Musique', LOCAL.music !== false)}
     </div>
@@ -841,7 +853,7 @@ function homeGuide() {
   const dots = '<span class="dots-key" aria-label="les trois points">•••</span>';
   const share = `${I('share', 17)}<b>Partager</b>`;
   if (/FxiOS|EdgiOS|OPiOS|FBAN|FBAV|Instagram|Line\/|GSA\//.test(ua)) return { other: true };
-  if (/CriOS/.test(ua)) return { steps: [`Touche ${I('share', 17)} dans la barre d’adresse`, 'Descends sous les options de Chrome', 'Touche <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b>'] };
+  if (/CriOS/.test(ua)) return { steps: [`Touche ${I('share', 17)} dans la barre d’adresse`, 'Fais défiler la liste jusqu’à <b>Sur l’écran d’accueil</b>', 'Puis <b>Ajouter</b>'] };
   if (!iphone) return { steps: [`Touche ${share} en haut à droite`, 'Choisis <b>Sur l’écran d’accueil</b>', 'Puis <b>Ajouter</b>'] };
   return { steps: [`Touche ${dots} à côté de l’adresse, puis ${share}`, 'Descends jusqu’à <b>Sur l’écran d’accueil</b>', 'Puis <b>Ajouter</b>'] };
 }
@@ -923,6 +935,19 @@ function celebrateHTML(m) {
     <p>Avant de le ranger dans les terminés, il reste ton dossier de livrables.${who}</p>
     <ul class="rows cel-list">${p.deliverables.map((d) => `<li class="row${d.done ? ' done' : ''}" data-id="${d.id}"><button class="box${d.done ? ' on ' + mkv(d.id) : ''}${flashed(d.id) ? ' just' : ''}" data-action="livr-toggle" data-p="${p.id}" data-d="${d.id}" aria-label="Cocher « ${esc(d.name)} »"></button><span class="row-label">${esc(d.name)}</span></li>`).join('')}</ul>
     <div class="cel-foot"><span class="muted"><b>${dd}</b> sur ${p.deliverables.length}</span><button class="btn quiet" data-action="open-project" data-id="${p.id}">Ouvrir le livre</button><button class="btn primary" data-action="close-pop">Plus tard</button></div>
+  </div>`;
+}
+/* Un livre fini : le moment le plus fort de l'atelier */
+function finishedHTML(m) {
+  const p = P(m.id); if (!p) return '';
+  const n = finishedThisYear().length;
+  const days = p.created ? Math.max(1, Math.round((Date.now() - p.created) / 864e5)) : 0;
+  const rank = n <= 1 ? 'Ton premier livre terminé cette année' : `Ton ${n}ᵉ livre terminé cette année`;
+  return `<div class="celebrate finished s-${p.side}">
+    <div class="cel-mark">${cellsHTML(p, { big: true, next: null })}</div>
+    <h2>${esc(p.title)}<span>C’est fini.</span></h2>
+    <p>${rank}${days > 1 ? `, ${days} jours après l’avoir commencé` : ''}. ${plural(p.steps.length, 'étape', 'étapes')}, toutes cochées.</p>
+    <div class="cel-foot"><button class="btn quiet" data-action="finished-undo">Annuler</button><button class="btn primary" data-action="close-pop">Sur l’étagère</button></div>
   </div>`;
 }
 function paletteHTML(m) {
